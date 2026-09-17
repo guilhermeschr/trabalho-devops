@@ -19,9 +19,12 @@ npm run typecheck
 npm run test:products
 npm run infra:config
 npm run infra:up
+npm run verify:swagger:products
 ~~~
 
 O gateway local ficará disponível em http://localhost:8080.
+O Swagger local ficará disponível em http://localhost:8080/docs e o documento
+OpenAPI em http://localhost:8080/docs-json.
 
 As rotas externas de Produtos ficam sob /api/v1/products. A rota interna
 /internal/v1/products/:id é acessível apenas dentro da rede Docker com
@@ -30,6 +33,10 @@ X-Internal-Token; o Nginx retorna 404 para /internal/.
 O ambiente inicial usa AUTH_ENABLED=false apenas para desenvolvimento local.
 Em qualquer ambiente real, configure AUTH_ENABLED=true e um JWT_SECRET seguro.
 O token de serviço interno deve ser diferente do segredo JWT.
+
+O Swagger é habilitado no ambiente local por `SWAGGER_ENABLED=true`. Em
+ambientes compartilhados ou de produção, configure `SWAGGER_ENABLED=false`.
+As rotas internas aparecem documentadas, mas continuam bloqueadas pelo Nginx.
 
 Para gerar um JWT de desenvolvimento:
 
