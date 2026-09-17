@@ -1,9 +1,17 @@
 # Especificação do Sistema de Delivery com Microsserviços
 
 **Status:** especificação de referência para implementação
-**Versão:** 1.0
+**Versão:** 1.1
+**Última atualização:** 2026-09-17
 **Idioma:** português
 **Objetivo:** orientar a construção, execução e validação de um sistema simples de delivery com foco em DevOps.
+
+## Histórico de alterações
+
+| Versão | Data | Alteração |
+|---|---|---|
+| 1.1 | 2026-09-17 | Início da implementação do microsserviço de Produtos, com CQRS, Outbox, RabbitMQ, Docker Compose e bypass temporário de JWT somente no ambiente local |
+| 1.0 | 2026-09-16 | Criação da especificação inicial do sistema de delivery |
 
 ## 1. Objetivo e escopo
 
@@ -481,7 +489,7 @@ Todos os serviços deverão retornar erros neste formato:
 
 ~~~json
 {
-  "statusCode": 409,
+  "status": 409,
   "code": "INSUFFICIENT_STOCK",
   "message": "Quantidade solicitada maior que o estoque disponível",
   "path": "/internal/v1/inventory/debit",
@@ -681,9 +689,34 @@ O caso de uso deverá receber essa interface por injeção, permitindo substitu�
 - O token interno deverá ser diferente do segredo utilizado para JWT.
 - Tokens, senhas e secrets nunca poderão aparecer nos logs.
 
+### 9.1 Exceção temporária da implementação inicial
+
+Enquanto o microsserviço Auth não estiver implementado, o serviço de Produtos
+deverá aceitar a variável "AUTH_ENABLED=false" exclusivamente no Compose local
+inicial. Nesse modo, as rotas externas de Produtos ficam sem a validação JWT
+para permitir a demonstração da fatia vertical.
+
+Quando "AUTH_ENABLED=true" (valor obrigatório para qualquer ambiente
+compartilhado, homologação ou produção), o serviço deverá exigir um JWT válido
+assinado com "JWT_SECRET". O bypass não poderá ser usado para contornar a
+autenticação em produção.
+
+A rota "/internal/v1/products/:id" sempre deverá exigir "X-Internal-Token",
+independentemente de "AUTH_ENABLED".
+
 ## 10. Docker Compose e configuração
 
-O arquivo `docker-compose.yml` deverá conter:
+Na implementação inicial do microsserviço de Produtos, o arquivo
+`infra/docker/docker-compose.yml` deverá conter somente:
+
+- "nginx-gateway"
+- "products-service"
+- "products-write-db"
+- "products-read-db"
+- "rabbitmq"
+
+Auth, Estoque, Pedidos e os demais bancos serão adicionados em etapas
+posteriores. Na versão completa do sistema, o Compose deverá conter:
 
 - "nginx-gateway"
 - "auth-service"
@@ -706,6 +739,10 @@ Requisitos:
 - Health checks deverão ser configurados para bancos, RabbitMQ e microsserviços.
 - Os microsserviços deverão aguardar as dependências ficarem saudáveis.
 - Portas de bancos e RabbitMQ não deverão ser publicadas para acesso externo.
+- O gateway inicial deverá publicar somente a porta HTTP configurada para o
+  Nginx, por padrão 8080.
+- O serviço de Produtos deverá executar as migrações TypeORM de escrita e
+  leitura antes de atender as rotas.
 
 Variáveis de ambiente mínimas:
 
@@ -735,7 +772,7 @@ As credenciais deverão ser fornecidas por ".env.example" sem valores reais.
 
 ## 11. Nginx Gateway
 
-O Nginx deverá encaminhar:
+Na versão completa, o Nginx deverá encaminhar:
 
 ~~~text
 /api/v1/auth/       -> auth-service
@@ -743,6 +780,9 @@ O Nginx deverá encaminhar:
 /api/v1/inventory   -> inventory-service
 /api/v1/orders      -> orders-service
 ~~~
+
+Na implementação inicial, somente "/api/v1/products" deverá ser encaminhado
+para "products-service". Nenhuma rota "/internal/" deverá ser encaminhada.
 
 O Nginx deverá:
 
@@ -889,4 +929,25 @@ O trabalho deverá ser considerado inválido se qualquer microsserviço ficar ab
 - Produtos e Estoque utilizam CQRS.
 - A consistência dos bancos de leitura é eventual.
 - Rotas internas são protegidas por "X-Internal-Token".
-- O documento especifica o sistema, mas não implementa os microsserviços.
+- A implementação é incremental; nesta etapa somente Produtos está ativo.
+
+## 16. Estado da implementação inicial
+
+A branch "funcionalidade/produtos-inicial" entrega a primeira fatia vertical
+do sistema:
+
+- "services/products" contém o microsserviço NestJS de Produtos.
+- "products-write-db" mantém a fonte de escrita e a Outbox.
+- "products-read-db" mantém a projeção usada pelas consultas.
+- RabbitMQ publica "product.created" e "product.updated" no exchange
+  "delivery.events".
+- "infra/nginx/nginx.conf" expõe somente as rotas públicas de Produtos e
+  bloqueia "/internal/".
+- "AUTH_ENABLED=false" é usado apenas pelo Compose local enquanto Auth não
+  existe; "X-Internal-Token" continua obrigatório para a rota interna.
+- A cobertura do serviço de Produtos possui limiar de 50% para branches,
+  functions, lines e statements, com suíte unitária independente.
+
+As próximas implementações deverão adicionar Auth, Estoque e Pedidos sem
+alterar os limites de dados, rotas internas e contratos definidos nesta
+especificação.
