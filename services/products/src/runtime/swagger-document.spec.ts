@@ -83,6 +83,25 @@ describe('contrato OpenAPI do serviço de Produtos', () => {
       expect.objectContaining({
         tags: ['Produtos'],
         security: [{ jwt: [] }],
+        parameters: expect.arrayContaining([
+          expect.objectContaining({
+            name: 'id',
+            in: 'query',
+            required: false,
+            schema: expect.objectContaining({
+              type: 'string',
+              format: 'uuid',
+            }),
+          }),
+          expect.objectContaining({
+            name: 'name',
+            in: 'query',
+            required: false,
+            schema: expect.objectContaining({
+              type: 'string',
+            }),
+          }),
+        ]),
         responses: expect.objectContaining({
           '200': expect.objectContaining({
             content: expect.objectContaining({

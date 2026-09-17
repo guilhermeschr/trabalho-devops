@@ -1,8 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource } from 'typeorm';
+import { DataSource, FindOptionsWhere, ILike } from 'typeorm';
 import { Product } from '../../../../domain/product';
-import { ProductReadRepository } from '../../../../application/ports/product.repositories';
+import {
+  ProductReadFilters,
+  ProductReadRepository,
+} from '../../../../application/ports/product.repositories';
 import { ProductReadOrmEntity } from '../entities/product-read.orm-entity';
 
 export const PRODUCTS_READ_CONNECTION = 'productsRead';
@@ -26,10 +29,23 @@ export class TypeOrmProductReadRepository implements ProductReadRepository {
     private readonly dataSource: DataSource,
   ) {}
 
-  async findAll(): Promise<Product[]> {
-    const entities = await this.dataSource
-      .getRepository(ProductReadOrmEntity)
-      .find();
+  async findAll(filters: ProductReadFilters = {}): Promise<Product[]> {
+    const repository = this.dataSource.getRepository(ProductReadOrmEntity);
+    let entities: ProductReadOrmEntity[];
+
+    if (!filters.id && !filters.name) {
+      entities = await repository.find();
+    } else {
+      const where: FindOptionsWhere<ProductReadOrmEntity> = {};
+      if (filters.id) {
+        where.id = filters.id;
+      }
+      if (filters.name) {
+        where.name = ILike(`%${filters.name}%`);
+      }
+      entities = await repository.find({ where });
+    }
+
     return entities.map(toDomain);
   }
 

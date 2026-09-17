@@ -1,7 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Product } from '../../domain/product';
 import { PRODUCT_READ_REPOSITORY } from '../ports/product.tokens';
-import { ProductReadRepository } from '../ports/product.repositories';
+import {
+  ProductReadFilters,
+  ProductReadRepository,
+} from '../ports/product.repositories';
 
 @Injectable()
 export class ListProductsUseCase {
@@ -10,7 +13,7 @@ export class ListProductsUseCase {
     private readonly productReadRepository: ProductReadRepository,
   ) {}
 
-  async execute(): Promise<Product[]> {
-    return this.productReadRepository.findAll();
+  async execute(filters: ProductReadFilters = {}): Promise<Product[]> {
+    return this.productReadRepository.findAll(filters);
   }
 }

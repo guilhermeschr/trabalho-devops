@@ -97,4 +97,17 @@ describe('casos de uso de Produto', () => {
     await expect(useCase.execute()).resolves.toBe(products);
     expect(repository.findAll).toHaveBeenCalledTimes(1);
   });
+
+  it('lista produtos aplicando filtros de id e nome', async () => {
+    const repository: ProductReadRepository = {
+      findAll: jest.fn().mockResolvedValue([product]),
+      findById: jest.fn(),
+      upsertProjection: jest.fn(),
+    };
+    const useCase = new ListProductsUseCase(repository);
+    const filters = { id: product.id, name: 'pizza' };
+
+    await expect(useCase.execute(filters)).resolves.toEqual([product]);
+    expect(repository.findAll).toHaveBeenCalledWith(filters);
+  });
 });

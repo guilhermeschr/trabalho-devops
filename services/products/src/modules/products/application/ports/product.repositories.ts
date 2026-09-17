@@ -10,8 +10,13 @@ export interface ProductWriteRepository {
   update(id: string, input: UpdateProductInput): Promise<Product>;
 }
 
+export interface ProductReadFilters {
+  id?: string;
+  name?: string;
+}
+
 export interface ProductReadRepository {
-  findAll(): Promise<Product[]>;
+  findAll(filters?: ProductReadFilters): Promise<Product[]>;
   findById(id: string): Promise<Product | null>;
   upsertProjection(product: Product): Promise<void>;
 }

@@ -1,7 +1,7 @@
 # Especificação do Sistema de Delivery com Microsserviços
 
 **Status:** especificação de referência para implementação
-**Versão:** 1.7
+**Versão:** 1.8
 **Última atualização:** 2026-09-17
 **Idioma:** português
 **Objetivo:** orientar a construção, execução e validação de um sistema simples de delivery com foco em DevOps.
@@ -10,6 +10,7 @@
 
 | Versão | Data | Alteração |
 |---|---|---|
+| 1.8 | 2026-09-17 | Adicionados os filtros opcionais por ID exato e nome parcial na consulta de produtos, com contrato Swagger e validação automatizada |
 | 1.7 | 2026-09-17 | Tornada obrigatória a recriação do container e a validação HTTP da interface `/docs` e do documento `/docs-json` |
 | 1.6 | 2026-09-17 | Adicionada a consulta de todos os produtos e removida a consulta pública de produto por ID, mantendo a edição e a consulta interna |
 | 1.5 | 2026-09-17 | Corrigidos o carregamento do `.env` da raiz nos comandos Docker Compose e o serviço usado no comando de logs |
@@ -284,9 +285,28 @@ GET /api/v1/products
 
 Essa rota deverá consultar exclusivamente "products-read-db" e retornar
 produtos ativos e inativos. Quando não houver produtos projetados, deverá
-retornar um array vazio. Não haverá paginação, filtros ou parâmetros de
-consulta nesta versão. Como o modelo de leitura é eventualmente consistente,
-uma criação ou edição poderá levar alguns instantes para aparecer nessa rota.
+retornar um array vazio. Não haverá paginação nesta versão, mas a consulta
+aceitará os filtros opcionais abaixo:
+
+| Parâmetro | Obrigatório | Comportamento |
+|---|---|---|
+| `id` | Não | UUID exato do produto |
+| `name` | Não | Parte do nome, sem diferenciar letras maiúsculas e minúsculas |
+
+Exemplos:
+
+~~~http
+GET /api/v1/products?id=4e1d9d5b-14b7-4599-9f8b-1b6d0f4e4c20
+GET /api/v1/products?name=pizza
+GET /api/v1/products?id=4e1d9d5b-14b7-4599-9f8b-1b6d0f4e4c20&name=pizza
+~~~
+
+Quando os dois filtros forem informados, eles deverão ser combinados com
+`AND`. O filtro `name` deverá remover espaços nas extremidades e utilizar
+busca parcial. Um `id` que não seja UUID válido, um `name` vazio ou um `name`
+com mais de 120 caracteres deverá retornar 400. Como o modelo de leitura é
+eventualmente consistente, uma criação ou edição poderá levar alguns instantes
+para aparecer nessa rota.
 
 ### 3.6 Adicionar estoque
 
@@ -848,7 +868,9 @@ O documento deverá conter todas as rotas implementadas no serviço:
 | GET | /health | Infraestrutura |
 
 Cada rota deverá documentar método, parâmetros, corpo, headers, autenticação,
-respostas HTTP, schemas e exemplos compatíveis com o comportamento real.
+respostas HTTP, schemas e exemplos compatíveis com o comportamento real. A
+listagem pública deverá documentar os parâmetros de consulta opcionais `id` e
+`name`, incluindo o formato UUID do primeiro.
 As rotas internas deverão aparecer documentadas, mas continuarão bloqueadas
 pelo Nginx para clientes externos.
 
@@ -947,8 +969,9 @@ npm run verify:swagger:products
 ~~~
 
 Essa validação deverá confirmar a presença das rotas públicas, internas e de
-health, dos métodos HTTP, do esquema Bearer JWT, do header
-`X-Internal-Token` e dos schemas de produto, erro e health.
+health, dos métodos HTTP, dos filtros `id` e `name` na listagem, do esquema
+Bearer JWT, do header `X-Internal-Token` e dos schemas de produto, erro e
+health.
 
 ## 13. Comandos de execução
 
@@ -1023,6 +1046,8 @@ do sistema:
   existe; "X-Internal-Token" continua obrigatório para a rota interna.
 - Swagger/OpenAPI documenta todas as rotas públicas, internas e de health; a
   validação do contrato é executada por "npm run verify:swagger:products".
+- A consulta pública de produtos aceita os filtros opcionais `id` exato e
+  `name` parcial, combinados com `AND` quando usados juntos.
 - A cobertura do serviço de Produtos possui limiar de 50% para branches,
   functions, lines e statements, com suíte unitária independente.
 

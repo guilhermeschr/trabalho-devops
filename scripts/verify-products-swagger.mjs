@@ -72,6 +72,27 @@ async function main() {
     list.security?.some((security) => security.jwt),
     'Autenticação JWT ausente na listagem de produtos',
   );
+  assert(
+    list.parameters?.some(
+      (parameter) =>
+        parameter.name === 'id' &&
+        parameter.in === 'query' &&
+        parameter.required === false &&
+        parameter.schema?.type === 'string' &&
+        parameter.schema?.format === 'uuid',
+    ),
+    'Filtro id ausente ou incorreto na listagem de produtos',
+  );
+  assert(
+    list.parameters?.some(
+      (parameter) =>
+        parameter.name === 'name' &&
+        parameter.in === 'query' &&
+        parameter.required === false &&
+        parameter.schema?.type === 'string',
+    ),
+    'Filtro name ausente ou incorreto na listagem de produtos',
+  );
   const listSchema =
     list.responses?.['200']?.content?.['application/json']?.schema;
   assert(

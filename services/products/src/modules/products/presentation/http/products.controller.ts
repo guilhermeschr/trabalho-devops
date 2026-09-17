@@ -6,6 +6,7 @@ import {
   ParseUUIDPipe,
   Post,
   Put,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -18,11 +19,13 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { ErrorResponseDto } from '../../../../common/swagger/error-response.dto';
 import { CreateProductDto } from '../../application/dto/create-product.dto';
+import { ListProductsQueryDto } from '../../application/dto/list-products.query.dto';
 import { ProductResponseDto } from '../../application/dto/product-response.dto';
 import { UpdateProductDto } from '../../application/dto/update-product.dto';
 import { CreateProductUseCase } from '../../application/use-cases/create-product.use-case';
@@ -47,9 +50,24 @@ export class ProductsController {
 
   @Get()
   @ApiOperation({ summary: 'Consultar todos os produtos' })
+  @ApiQuery({
+    name: 'id',
+    required: false,
+    type: String,
+    format: 'uuid',
+    description: 'Identificador UUID exato do produto',
+  })
+  @ApiQuery({
+    name: 'name',
+    required: false,
+    type: String,
+    description: 'Parte do nome, sem diferenciar maiúsculas',
+  })
   @ApiOkResponse({ type: ProductResponseDto, isArray: true })
-  async findAll(): Promise<ProductResponseDto[]> {
-    const products = await this.listProducts.execute();
+  async findAll(
+    @Query() query: ListProductsQueryDto,
+  ): Promise<ProductResponseDto[]> {
+    const products = await this.listProducts.execute(query);
     return products.map((product) => ProductResponseDto.fromDomain(product));
   }
 
@@ -97,5 +115,4 @@ export class ProductsController {
       rethrowProductHttpError(error);
     }
   }
-
 }

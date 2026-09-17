@@ -42,9 +42,18 @@ OpenAPI em http://localhost:8080/docs-json.
 
 As rotas externas de Produtos são:
 
-- `GET /api/v1/products`
+- `GET /api/v1/products` — consulta todos os produtos; aceita os filtros
+  opcionais `id` (UUID exato) e `name` (nome parcial, sem diferenciar
+  maiúsculas e minúsculas)
 - `POST /api/v1/products`
 - `PUT /api/v1/products/:id`
+
+Exemplos de consulta:
+
+~~~bash
+curl --get 'http://localhost:8080/api/v1/products' --data-urlencode 'name=pizza'
+curl --get 'http://localhost:8080/api/v1/products' --data-urlencode 'id=33eba94f-f9d2-4d91-bfc7-c272a9067304'
+~~~
 
 A consulta por ID existe somente em `/internal/v1/products/:id`, acessível
 dentro da rede Docker com `X-Internal-Token`; o Nginx retorna 404 para

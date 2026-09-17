@@ -113,6 +113,29 @@ function readDataSource(repository: {
 }
 
 describe('TypeOrmProductReadRepository', () => {
+  it('filtra por id exato e nome parcial sem diferenciar maiúsculas', async () => {
+    const readRepository = {
+      find: jest.fn().mockResolvedValue([]),
+    };
+    const repository = new TypeOrmProductReadRepository(
+      readDataSource(readRepository),
+    );
+
+    await expect(
+      repository.findAll({ id: productId, name: 'pizza' }),
+    ).resolves.toEqual([]);
+
+    expect(readRepository.find).toHaveBeenCalledWith({
+      where: {
+        id: productId,
+        name: expect.objectContaining({
+          _type: 'ilike',
+          _value: '%pizza%',
+        }),
+      },
+    });
+  });
+
   it('consulta todos os produtos na projeção de leitura', async () => {
     const entities = [
       Object.assign(new ProductReadOrmEntity(), {

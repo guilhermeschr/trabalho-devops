@@ -1,5 +1,6 @@
 import { NotFoundException } from '@nestjs/common';
 import { CreateProductDto } from '../../application/dto/create-product.dto';
+import { ListProductsQueryDto } from '../../application/dto/list-products.query.dto';
 import { UpdateProductDto } from '../../application/dto/update-product.dto';
 import { ProductNotFoundError } from '../../domain/product';
 import { CreateProductUseCase } from '../../application/use-cases/create-product.use-case';
@@ -69,7 +70,7 @@ describe('controllers HTTP de Produto', () => {
       list,
     );
 
-    await expect(controller.findAll()).resolves.toEqual([
+    await expect(controller.findAll({})).resolves.toEqual([
       expect.objectContaining({
         id: product.id,
         name: product.name,
@@ -77,6 +78,24 @@ describe('controllers HTTP de Produto', () => {
       }),
     ]);
     expect(list.execute).toHaveBeenCalledTimes(1);
+  });
+
+  it('encaminha os filtros da consulta para o caso de uso', async () => {
+    const list = {
+      execute: jest.fn().mockResolvedValue([product]),
+    } as unknown as ListProductsUseCase;
+    const controller = new ProductsController(
+      {} as CreateProductUseCase,
+      {} as UpdateProductUseCase,
+      list,
+    );
+    const query = {
+      id: product.id,
+      name: 'pizza',
+    } as ListProductsQueryDto;
+
+    await expect(controller.findAll(query)).resolves.toHaveLength(1);
+    expect(list.execute).toHaveBeenCalledWith(query);
   });
 
   it('mapeia produto inexistente para 404', async () => {
