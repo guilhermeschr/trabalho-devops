@@ -153,7 +153,41 @@ Antes do commit:
 
 Não use `git add -A` ou `git add .` quando isso puder incluir alterações não relacionadas.
 
-## 7. Push e integração
+## 7. Padrão de branches
+
+Toda branch nova deverá:
+
+- Usar nome em português do Brasil.
+- Usar letras minúsculas.
+- Não conter acentos, espaços ou caracteres especiais.
+- Separar palavras com hífen.
+- Nunca utilizar o prefixo `codex/`.
+- Utilizar uma das categorias abaixo:
+
+| Categoria | Uso |
+|---|---|
+| `funcionalidade/` | Nova funcionalidade ou serviço |
+| `correcao/` | Correção de comportamento |
+| `documentacao/` | Alteração de documentação |
+| `refatoracao/` | Refatoração sem mudança funcional |
+| `manutencao/` | Manutenção técnica |
+| `infraestrutura/` | Docker, Nginx ou ambiente |
+
+Formato obrigatório: `<categoria>/<descricao-em-minusculas>`.
+
+Exemplos:
+
+- `funcionalidade/produtos-inicial`
+- `correcao/validacao-de-preco`
+- `infraestrutura/configurar-rabbitmq`
+
+Para criar uma branch, use:
+
+`git switch -c funcionalidade/produtos-inicial`
+
+Não crie branches diretamente com o prefixo `codex/`.
+
+## 8. Push e integração
 
 Não faça push, merge ou criação de Pull Request sem solicitação explícita do usuário.
 
@@ -167,7 +201,7 @@ Quando o push for solicitado:
 
 Nunca use `git reset --hard`, force push ou descarte de alterações do usuário sem autorização explícita.
 
-## 8. Definição de pronto
+## 9. Definição de pronto
 
 Uma tarefa só está pronta quando:
 
