@@ -1,0 +1,18 @@
+{
+  "name": "trabalho-devops",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sistema de delivery com microsserviços",
+  "workspaces": [
+    "services/*"
+  ],
+  "scripts": {
+    "build:products": "npm --workspace services/products run build",
+    "dev:products": "npm --workspace services/products run start:dev",
+    "typecheck": "npm --workspace services/products run typecheck",
+    "test:products": "npm --workspace services/products run test:cov --",
+    "infra:config": "docker compose -f infra/docker/docker-compose.yml config",
+    "infra:up": "docker compose -f infra/docker/docker-compose.yml up --build",
+    "infra:down": "docker compose -f infra/docker/docker-compose.yml down"
+  }
+}

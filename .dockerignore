@@ -1,0 +1,8 @@
+.git
+.env
+node_modules
+coverage
+dist
+services/products/dist
+services/products/coverage
+npm-debug.log
