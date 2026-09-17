@@ -1,7 +1,7 @@
 # Especificação do Sistema de Delivery com Microsserviços
 
 **Status:** especificação de referência para implementação
-**Versão:** 1.1
+**Versão:** 1.3
 **Última atualização:** 2026-09-17
 **Idioma:** português
 **Objetivo:** orientar a construção, execução e validação de um sistema simples de delivery com foco em DevOps.
@@ -10,6 +10,8 @@
 
 | Versão | Data | Alteração |
 |---|---|---|
+| 1.3 | 2026-09-17 | Ajustada a rede Docker para permitir a publicação do gateway Nginx no host, mantendo bancos e RabbitMQ sem portas externas |
+| 1.2 | 2026-09-17 | Corrigida a dependência de runtime do adaptador HTTP Express exigido pelo NestJS no container de Produtos |
 | 1.1 | 2026-09-17 | Início da implementação do microsserviço de Produtos, com CQRS, Outbox, RabbitMQ, Docker Compose e bypass temporário de JWT somente no ambiente local |
 | 1.0 | 2026-09-16 | Criação da especificação inicial do sistema de delivery |
 

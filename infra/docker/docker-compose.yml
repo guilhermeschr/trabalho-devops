@@ -1,3 +1,4 @@
+name: Sistema Delivery Microserviços
 services:
   products-service:
     build:
@@ -113,7 +114,6 @@ services:
 networks:
   delivery-private:
     driver: bridge
-    internal: true
 
 volumes:
   products-write-data:
