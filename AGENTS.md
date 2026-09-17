@@ -96,6 +96,18 @@ Regras obrigatórias:
   Swagger.
 - Toda nova rota deve ser verificada com `npm run verify:swagger:products`.
 - Swagger deve permanecer desabilitado em produção.
+- Antes de considerar o Swagger disponível, confirme a configuração efetiva no
+  container de Produtos com:
+  `docker compose --env-file .env -f infra/docker/docker-compose.yml exec -T products-service sh -lc 'printf "SWAGGER_ENABLED=%s NODE_ENV=%s\\n" "$SWAGGER_ENABLED" "$NODE_ENV"'`.
+- Após alterar `.env` ou a configuração do Compose, suba os serviços com
+  `npm run infra:up`, que deve usar `--env-file .env` e `--force-recreate`.
+  Executar somente `docker compose ps` não atualiza um container existente.
+- A validação final deve consultar `npm run verify:swagger:products` e testar
+  HTTP 200 em `/docs` e `/docs-json`. O endpoint `/docs` deve abrir a interface
+  Swagger; validar apenas a existência do JSON não é suficiente.
+- Se `/docs` ou `/docs-json` retornar `Cannot GET`, investigue primeiro a
+  variável efetiva `SWAGGER_ENABLED`, `NODE_ENV` e a recriação do container;
+  não altere as rotas Swagger antes dessa verificação.
 
 ## 6. Testes e qualidade
 
