@@ -1,7 +1,7 @@
 # Especificação do Sistema de Delivery com Microsserviços
 
 **Status:** especificação de referência para implementação
-**Versão:** 1.4
+**Versão:** 1.5
 **Última atualização:** 2026-09-17
 **Idioma:** português
 **Objetivo:** orientar a construção, execução e validação de um sistema simples de delivery com foco em DevOps.
@@ -10,6 +10,7 @@
 
 | Versão | Data | Alteração |
 |---|---|---|
+| 1.5 | 2026-09-17 | Corrigidos o carregamento do `.env` da raiz nos comandos Docker Compose e o serviço usado no comando de logs |
 | 1.4 | 2026-09-17 | Adicionada documentação Swagger/OpenAPI de todas as rotas, validação automatizada do contrato e controle de habilitação por ambiente |
 | 1.3 | 2026-09-17 | Ajustada a rede Docker para permitir a publicação do gateway Nginx no host, mantendo bancos e RabbitMQ sem portas externas |
 | 1.2 | 2026-09-17 | Corrigida a dependência de runtime do adaptador HTTP Express exigido pelo NestJS no container de Produtos |
@@ -929,10 +930,10 @@ health, dos métodos HTTP, do esquema Bearer JWT, do header
 O README ou a documentação de execução deverá apresentar comandos equivalentes a:
 
 ~~~bash
-docker compose up --build
-docker compose ps
-docker compose logs -f orders-service
-docker compose down
+docker compose --env-file .env -f infra/docker/docker-compose.yml up --build
+docker compose --env-file .env -f infra/docker/docker-compose.yml ps
+docker compose --env-file .env -f infra/docker/docker-compose.yml logs -f products-service
+docker compose --env-file .env -f infra/docker/docker-compose.yml down
 npm run verify:swagger:products
 ~~~
 

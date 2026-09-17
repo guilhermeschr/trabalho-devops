@@ -37,6 +37,8 @@ O token de serviço interno deve ser diferente do segredo JWT.
 O Swagger é habilitado no ambiente local por `SWAGGER_ENABLED=true`. Em
 ambientes compartilhados ou de produção, configure `SWAGGER_ENABLED=false`.
 As rotas internas aparecem documentadas, mas continuam bloqueadas pelo Nginx.
+Os comandos npm de infraestrutura usam `--env-file .env` para carregar o `.env`
+da raiz, mesmo com o arquivo Compose localizado em `infra/docker`.
 
 Para gerar um JWT de desenvolvimento:
 
@@ -49,8 +51,8 @@ Comandos de operação:
 ~~~bash
 npm run infra:up
 npm run infra:down
-docker compose -f infra/docker/docker-compose.yml ps
-docker compose -f infra/docker/docker-compose.yml logs -f products-service
+docker compose --env-file .env -f infra/docker/docker-compose.yml ps
+docker compose --env-file .env -f infra/docker/docker-compose.yml logs -f products-service
 ~~~
 
 A implementação inicial contém somente o microsserviço de Produtos, seus dois

@@ -11,4 +11,14 @@ describe('exposição do gateway', () => {
     expect(compose).toContain('${PRODUCTS_PUBLIC_PORT:-8080}:80');
     expect(compose).not.toMatch(/^\s+internal:\s+true\s*$/mu);
   });
+
+  it('carrega o .env da raiz nos comandos de infraestrutura', () => {
+    const packageJson = JSON.parse(
+      readFileSync(join(__dirname, '../../../../package.json'), 'utf8'),
+    ) as { scripts: Record<string, string> };
+
+    for (const scriptName of ['infra:config', 'infra:up', 'infra:down']) {
+      expect(packageJson.scripts[scriptName]).toContain('--env-file .env');
+    }
+  });
 });
