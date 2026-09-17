@@ -77,7 +77,27 @@ Quando código e especificação descrevem o mesmo comportamento, prefira coloc�
 - Não instancie manualmente repositórios, clientes HTTP, publishers ou conexões dentro de controllers e casos de uso.
 - Não acesse diretamente o banco de outro microsserviço.
 
-## 5. Testes e qualidade
+## 5. Documentação Swagger das rotas
+
+Toda rota criada ou alterada deverá ser documentada corretamente no Swagger.
+
+Regras obrigatórias:
+
+- Controllers devem declarar tags e operações com decorators Swagger.
+- Parâmetros de rota, corpos, headers e autenticação devem aparecer no
+  documento OpenAPI.
+- Códigos HTTP, schemas, exemplos e mensagens documentados devem refletir o
+  comportamento real da aplicação.
+- Rotas públicas, internas e de infraestrutura devem aparecer no endpoint
+  `/docs-json`.
+- Rotas internas devem ser identificadas com tag própria e continuar bloqueadas
+  pelo Nginx.
+- Toda alteração de rota deve atualizar o teste automatizado do contrato
+  Swagger.
+- Toda nova rota deve ser verificada com `npm run verify:swagger:products`.
+- Swagger deve permanecer desabilitado em produção.
+
+## 6. Testes e qualidade
 
 Cada microsserviço deve possuir testes unitários próprios.
 
@@ -98,7 +118,7 @@ Toda alteração de comportamento deve incluir ou atualizar testes para:
 
 Antes de criar o commit, execute os testes e a cobertura do serviço afetado. Em alterações que atravessam serviços, execute também o roteiro de comunicação definido na especificação. Se não houver código ou suíte de testes disponível, registre essa limitação no resultado da tarefa e faça as verificações documentais possíveis.
 
-## 6. Padrão de commits
+## 7. Padrão de commits
 
 Toda alteração com relevância funcional, arquitetural, de infraestrutura, testes ou documentação deverá possuir um commit próprio e logicamente agrupado.
 
@@ -153,7 +173,7 @@ Antes do commit:
 
 Não use `git add -A` ou `git add .` quando isso puder incluir alterações não relacionadas.
 
-## 7. Padrão de branches
+## 8. Padrão de branches
 
 Toda branch nova deverá:
 
@@ -187,7 +207,7 @@ Para criar uma branch, use:
 
 Não crie branches diretamente com o prefixo `codex/`.
 
-## 8. Push e integração
+## 9. Push e integração
 
 Não faça push, merge ou criação de Pull Request sem solicitação explícita do usuário.
 
@@ -201,7 +221,7 @@ Quando o push for solicitado:
 
 Nunca use `git reset --hard`, force push ou descarte de alterações do usuário sem autorização explícita.
 
-## 9. Definição de pronto
+## 10. Definição de pronto
 
 Uma tarefa só está pronta quando:
 
