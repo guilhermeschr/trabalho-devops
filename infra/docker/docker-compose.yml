@@ -8,6 +8,7 @@ services:
       NODE_ENV: ${NODE_ENV:-development}
       PRODUCTS_PORT: 3000
       AUTH_ENABLED: ${AUTH_ENABLED:-false}
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
       JWT_SECRET: ${JWT_SECRET:-change-me-in-development}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-3600s}
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-change-me-internal-development}

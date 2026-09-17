@@ -1,7 +1,7 @@
 # Especificação do Sistema de Delivery com Microsserviços
 
 **Status:** especificação de referência para implementação
-**Versão:** 1.3
+**Versão:** 1.4
 **Última atualização:** 2026-09-17
 **Idioma:** português
 **Objetivo:** orientar a construção, execução e validação de um sistema simples de delivery com foco em DevOps.
@@ -10,6 +10,7 @@
 
 | Versão | Data | Alteração |
 |---|---|---|
+| 1.4 | 2026-09-17 | Adicionada documentação Swagger/OpenAPI de todas as rotas, validação automatizada do contrato e controle de habilitação por ambiente |
 | 1.3 | 2026-09-17 | Ajustada a rede Docker para permitir a publicação do gateway Nginx no host, mantendo bancos e RabbitMQ sem portas externas |
 | 1.2 | 2026-09-17 | Corrigida a dependência de runtime do adaptador HTTP Express exigido pelo NestJS no container de Produtos |
 | 1.1 | 2026-09-17 | Início da implementação do microsserviço de Produtos, com CQRS, Outbox, RabbitMQ, Docker Compose e bypass temporário de JWT somente no ambiente local |
@@ -59,6 +60,7 @@ Não fazem parte desta versão:
 | Gateway | Nginx |
 | Empacotamento | Docker e Docker Compose |
 | Testes | Jest e Supertest |
+| Documentação de API | Swagger/OpenAPI |
 
 ### 2.2 Componentes
 
@@ -762,6 +764,7 @@ READ_DATABASE_NAME
 READ_DATABASE_USER
 READ_DATABASE_PASSWORD
 RABBITMQ_URL
+SWAGGER_ENABLED
 JWT_SECRET
 JWT_EXPIRES_IN
 INTERNAL_SERVICE_TOKEN
@@ -794,6 +797,34 @@ O Nginx deverá:
 - Não encaminhar "/internal/".
 - Não publicar bancos ou RabbitMQ.
 - Retornar erro controlado quando o serviço de destino estiver indisponível.
+
+### 11.1 Documentação Swagger
+
+O serviço de Produtos deverá disponibilizar, no ambiente local, os endpoints:
+
+~~~text
+/docs       -> interface Swagger UI
+/docs-json  -> documento OpenAPI em JSON
+~~~
+
+O Swagger deverá ser habilitado somente quando `SWAGGER_ENABLED=true` e
+`NODE_ENV` não for `production`. O Compose deverá usar `false` como padrão
+seguro quando a variável não for informada.
+
+O documento deverá conter todas as rotas implementadas no serviço:
+
+| Método | Rota | Tag |
+|---|---|---|
+| POST | /api/v1/products | Produtos |
+| PUT | /api/v1/products/{id} | Produtos |
+| GET | /api/v1/products/{id} | Produtos |
+| GET | /internal/v1/products/{id} | Produtos internos |
+| GET | /health | Infraestrutura |
+
+Cada rota deverá documentar método, parâmetros, corpo, headers, autenticação,
+respostas HTTP, schemas e exemplos compatíveis com o comportamento real.
+As rotas internas deverão aparecer documentadas, mas continuarão bloqueadas
+pelo Nginx para clientes externos.
 
 ## 12. Testes
 
@@ -880,6 +911,19 @@ Além dos testes unitários, deverá existir um roteiro de validação com Docke
 9. Conclusão do pedido.
 10. Repetição da conclusão para validar idempotência.
 
+### 12.4 Contrato Swagger
+
+O projeto deverá possuir validação automatizada do documento OpenAPI por meio
+do comando:
+
+~~~bash
+npm run verify:swagger:products
+~~~
+
+Essa validação deverá confirmar a presença das rotas públicas, internas e de
+health, dos métodos HTTP, do esquema Bearer JWT, do header
+`X-Internal-Token` e dos schemas de produto, erro e health.
+
 ## 13. Comandos de execução
 
 O README ou a documentação de execução deverá apresentar comandos equivalentes a:
@@ -889,6 +933,7 @@ docker compose up --build
 docker compose ps
 docker compose logs -f orders-service
 docker compose down
+npm run verify:swagger:products
 ~~~
 
 Para cada microsserviço, deverá existir comando de teste equivalente a:
@@ -916,6 +961,9 @@ O trabalho deverá ser considerado inválido se qualquer microsserviço ficar ab
 - [ ] Conclusão só pode ser feita pelo proprietário.
 - [ ] Conclusão repetida é idempotente.
 - [ ] Health checks estão configurados.
+- [ ] Todas as rotas do serviço de Produtos aparecem corretamente no Swagger.
+- [ ] `/docs` e `/docs-json` funcionam quando Swagger está habilitado.
+- [ ] Swagger fica desabilitado em produção.
 - [ ] Todos os microsserviços possuem testes unitários.
 - [ ] Cada microsserviço possui pelo menos 50% de cobertura.
 - [ ] Nenhum segredo real está versionado.
@@ -947,6 +995,8 @@ do sistema:
   bloqueia "/internal/".
 - "AUTH_ENABLED=false" é usado apenas pelo Compose local enquanto Auth não
   existe; "X-Internal-Token" continua obrigatório para a rota interna.
+- Swagger/OpenAPI documenta todas as rotas públicas, internas e de health; a
+  validação do contrato é executada por "npm run verify:swagger:products".
 - A cobertura do serviço de Produtos possui limiar de 50% para branches,
   functions, lines e statements, com suíte unitária independente.
 
