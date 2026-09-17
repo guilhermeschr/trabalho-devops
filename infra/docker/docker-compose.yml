@@ -1,0 +1,122 @@
+name: Sistema Delivery Microserviços
+services:
+  products-service:
+    build:
+      context: ../..
+      dockerfile: services/products/Dockerfile
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PRODUCTS_PORT: 3000
+      AUTH_ENABLED: ${AUTH_ENABLED:-false}
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-development}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-3600s}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-change-me-internal-development}
+      PRODUCTS_WRITE_DB_HOST: products-write-db
+      PRODUCTS_WRITE_DB_PORT: 5432
+      PRODUCTS_WRITE_DB_NAME: products_write
+      PRODUCTS_WRITE_DB_USER: products
+      PRODUCTS_WRITE_DB_PASSWORD: products
+      PRODUCTS_READ_DB_HOST: products-read-db
+      PRODUCTS_READ_DB_PORT: 5432
+      PRODUCTS_READ_DB_NAME: products_read
+      PRODUCTS_READ_DB_USER: products
+      PRODUCTS_READ_DB_PASSWORD: products
+      RABBITMQ_URL: amqp://products:products@rabbitmq:5672
+      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE:-delivery.events}
+      RABBITMQ_PRODUCTS_QUEUE: ${RABBITMQ_PRODUCTS_QUEUE:-products.read.projector}
+    depends_on:
+      products-write-db:
+        condition: service_healthy
+      products-read-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - delivery-private
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  products-write-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: products_write
+      POSTGRES_USER: products
+      POSTGRES_PASSWORD: products
+    volumes:
+      - products-write-data:/var/lib/postgresql/data
+    networks:
+      - delivery-private
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U products -d products_write"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  products-read-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: products_read
+      POSTGRES_USER: products
+      POSTGRES_PASSWORD: products
+    volumes:
+      - products-read-data:/var/lib/postgresql/data
+    networks:
+      - delivery-private
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U products -d products_read"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: products
+      RABBITMQ_DEFAULT_PASS: products
+      RABBITMQ_DEFAULT_VHOST: /
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - delivery-private
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  nginx-gateway:
+    image: nginx:1.27-alpine
+    ports:
+      - "${PRODUCTS_PUBLIC_PORT:-8080}:80"
+    volumes:
+      - ../nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      products-service:
+        condition: service_healthy
+    networks:
+      - delivery-private
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  delivery-private:
+    driver: bridge
+
+volumes:
+  products-write-data:
+  products-read-data:
+  rabbitmq-data:
