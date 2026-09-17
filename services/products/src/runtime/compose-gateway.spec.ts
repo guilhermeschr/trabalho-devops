@@ -21,4 +21,12 @@ describe('exposição do gateway', () => {
       expect(packageJson.scripts[scriptName]).toContain('--env-file .env');
     }
   });
+
+  it('recria os serviços para aplicar alterações do .env', () => {
+    const packageJson = JSON.parse(
+      readFileSync(join(__dirname, '../../../../package.json'), 'utf8'),
+    ) as { scripts: Record<string, string> };
+
+    expect(packageJson.scripts['infra:up']).toContain('--force-recreate');
+  });
 });

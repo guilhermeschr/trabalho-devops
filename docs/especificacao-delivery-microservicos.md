@@ -1,7 +1,7 @@
 # Especificação do Sistema de Delivery com Microsserviços
 
 **Status:** especificação de referência para implementação
-**Versão:** 1.6
+**Versão:** 1.7
 **Última atualização:** 2026-09-17
 **Idioma:** português
 **Objetivo:** orientar a construção, execução e validação de um sistema simples de delivery com foco em DevOps.
@@ -10,6 +10,7 @@
 
 | Versão | Data | Alteração |
 |---|---|---|
+| 1.7 | 2026-09-17 | Tornada obrigatória a recriação do container e a validação HTTP da interface `/docs` e do documento `/docs-json` |
 | 1.6 | 2026-09-17 | Adicionada a consulta de todos os produtos e removida a consulta pública de produto por ID, mantendo a edição e a consulta interna |
 | 1.5 | 2026-09-17 | Corrigidos o carregamento do `.env` da raiz nos comandos Docker Compose e o serviço usado no comando de logs |
 | 1.4 | 2026-09-17 | Adicionada documentação Swagger/OpenAPI de todas as rotas, validação automatizada do contrato e controle de habilitação por ambiente |
@@ -822,6 +823,20 @@ O Swagger deverá ser habilitado somente quando `SWAGGER_ENABLED=true` e
 `NODE_ENV` não for `production`. O Compose deverá usar `false` como padrão
 seguro quando a variável não for informada.
 
+Após alterar `.env` ou a configuração do Compose, os containers deverão ser
+recriados para aplicar o valor efetivo de `SWAGGER_ENABLED`:
+
+~~~bash
+npm run infra:up
+docker compose --env-file .env -f infra/docker/docker-compose.yml exec -T products-service sh -lc 'printf "SWAGGER_ENABLED=%s NODE_ENV=%s\\n" "$SWAGGER_ENABLED" "$NODE_ENV"'
+curl -i http://localhost:8080/docs
+curl -i http://localhost:8080/docs-json
+~~~
+
+Quando o Swagger estiver habilitado, `/docs` e `/docs-json` deverão retornar
+HTTP 200. Se o serviço responder `Cannot GET`, a primeira verificação deverá
+ser a configuração efetiva no container e a recriação dos serviços.
+
 O documento deverá conter todas as rotas implementadas no serviço:
 
 | Método | Rota | Tag |
@@ -940,7 +955,7 @@ health, dos métodos HTTP, do esquema Bearer JWT, do header
 O README ou a documentação de execução deverá apresentar comandos equivalentes a:
 
 ~~~bash
-docker compose --env-file .env -f infra/docker/docker-compose.yml up --build
+docker compose --env-file .env -f infra/docker/docker-compose.yml up --build --force-recreate
 docker compose --env-file .env -f infra/docker/docker-compose.yml ps
 docker compose --env-file .env -f infra/docker/docker-compose.yml logs -f products-service
 docker compose --env-file .env -f infra/docker/docker-compose.yml down

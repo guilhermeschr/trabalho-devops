@@ -22,6 +22,20 @@ npm run infra:up
 npm run verify:swagger:products
 ~~~
 
+`npm run infra:up` carrega o `.env` da raiz e recria os containers para aplicar
+alterações em `SWAGGER_ENABLED`. Depois de subir os serviços, confirme que o
+container recebeu `SWAGGER_ENABLED=true` e valide os dois endpoints:
+
+~~~bash
+docker compose --env-file .env -f infra/docker/docker-compose.yml exec -T products-service sh -lc 'printf "SWAGGER_ENABLED=%s NODE_ENV=%s\\n" "$SWAGGER_ENABLED" "$NODE_ENV"'
+curl -i http://localhost:8080/docs
+curl -i http://localhost:8080/docs-json
+~~~
+
+`/docs` e `/docs-json` devem retornar HTTP 200 quando o Swagger estiver
+habilitado. Consultar somente `/docs-json` não confirma que a interface está
+abrindo corretamente.
+
 O gateway local ficará disponível em http://localhost:8080.
 O Swagger local ficará disponível em http://localhost:8080/docs e o documento
 OpenAPI em http://localhost:8080/docs-json.

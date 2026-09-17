@@ -13,7 +13,7 @@
     "test:products": "npm --workspace services/products run test:cov --",
     "verify:swagger:products": "node scripts/verify-products-swagger.mjs",
     "infra:config": "docker compose --env-file .env -f infra/docker/docker-compose.yml config",
-    "infra:up": "docker compose --env-file .env -f infra/docker/docker-compose.yml up --build",
+    "infra:up": "docker compose --env-file .env -f infra/docker/docker-compose.yml up --build --force-recreate",
     "infra:down": "docker compose --env-file .env -f infra/docker/docker-compose.yml down"
   }
 }
