@@ -5,6 +5,7 @@ import { HealthController } from '../health/health.controller';
 import { HealthService } from '../health/health.service';
 import { CreateProductUseCase } from '../modules/products/application/use-cases/create-product.use-case';
 import { GetProductUseCase } from '../modules/products/application/use-cases/get-product.use-case';
+import { ListProductsUseCase } from '../modules/products/application/use-cases/list-products.use-case';
 import { UpdateProductUseCase } from '../modules/products/application/use-cases/update-product.use-case';
 import { InternalTokenGuard } from '../modules/products/infrastructure/auth/internal-token.guard';
 import { JwtAuthGuard } from '../modules/products/infrastructure/auth/jwt-auth.guard';
@@ -20,6 +21,7 @@ import { ProductsController } from '../modules/products/presentation/http/produc
   providers: [
     { provide: CreateProductUseCase, useValue: {} },
     { provide: GetProductUseCase, useValue: {} },
+    { provide: ListProductsUseCase, useValue: {} },
     { provide: UpdateProductUseCase, useValue: {} },
     { provide: HealthService, useValue: {} },
     { provide: JwtAuthGuard, useValue: { canActivate: () => true } },
@@ -60,9 +62,9 @@ describe('contrato OpenAPI do serviço de Produtos', () => {
       expect.objectContaining({
         '/api/v1/products': expect.objectContaining({
           post: expect.any(Object),
+          get: expect.any(Object),
         }),
         '/api/v1/products/{id}': expect.objectContaining({
-          get: expect.any(Object),
           put: expect.any(Object),
         }),
         '/internal/v1/products/{id}': expect.objectContaining({
@@ -70,6 +72,32 @@ describe('contrato OpenAPI do serviço de Produtos', () => {
         }),
         '/health': expect.objectContaining({
           get: expect.any(Object),
+        }),
+      }),
+    );
+
+    expect(document.paths['/api/v1/products/{id}']?.get).toBeUndefined();
+
+    const listOperation = document.paths['/api/v1/products']?.get;
+    expect(listOperation).toEqual(
+      expect.objectContaining({
+        tags: ['Produtos'],
+        security: [{ jwt: [] }],
+        responses: expect.objectContaining({
+          '200': expect.objectContaining({
+            content: expect.objectContaining({
+              'application/json': expect.objectContaining({
+                schema: expect.objectContaining({
+                  type: 'array',
+                  items: {
+                    $ref: '#/components/schemas/ProductResponseDto',
+                  },
+                }),
+              }),
+            }),
+          }),
+          '401': expect.any(Object),
+          '500': expect.any(Object),
         }),
       }),
     );

@@ -26,6 +26,13 @@ export class TypeOrmProductReadRepository implements ProductReadRepository {
     private readonly dataSource: DataSource,
   ) {}
 
+  async findAll(): Promise<Product[]> {
+    const entities = await this.dataSource
+      .getRepository(ProductReadOrmEntity)
+      .find();
+    return entities.map(toDomain);
+  }
+
   async findById(id: string): Promise<Product | null> {
     const entity = await this.dataSource.getRepository(ProductReadOrmEntity).findOne({
       where: { id },

@@ -24,6 +24,7 @@ import {
 } from './application/ports/product.tokens';
 import { CreateProductUseCase } from './application/use-cases/create-product.use-case';
 import { GetProductUseCase } from './application/use-cases/get-product.use-case';
+import { ListProductsUseCase } from './application/use-cases/list-products.use-case';
 import { UpdateProductUseCase } from './application/use-cases/update-product.use-case';
 import { JwtAuthGuard } from './infrastructure/auth/jwt-auth.guard';
 import { InternalTokenGuard } from './infrastructure/auth/internal-token.guard';
@@ -117,6 +118,7 @@ import { ProductsController } from './presentation/http/products.controller';
     CreateProductUseCase,
     UpdateProductUseCase,
     GetProductUseCase,
+    ListProductsUseCase,
     JwtAuthGuard,
     InternalTokenGuard,
     ProductReadProjectorConsumer,

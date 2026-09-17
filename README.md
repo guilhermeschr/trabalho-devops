@@ -26,9 +26,15 @@ O gateway local ficará disponível em http://localhost:8080.
 O Swagger local ficará disponível em http://localhost:8080/docs e o documento
 OpenAPI em http://localhost:8080/docs-json.
 
-As rotas externas de Produtos ficam sob /api/v1/products. A rota interna
-/internal/v1/products/:id é acessível apenas dentro da rede Docker com
-X-Internal-Token; o Nginx retorna 404 para /internal/.
+As rotas externas de Produtos são:
+
+- `GET /api/v1/products`
+- `POST /api/v1/products`
+- `PUT /api/v1/products/:id`
+
+A consulta por ID existe somente em `/internal/v1/products/:id`, acessível
+dentro da rede Docker com `X-Internal-Token`; o Nginx retorna 404 para
+`/internal/`.
 
 O ambiente inicial usa AUTH_ENABLED=false apenas para desenvolvimento local.
 Em qualquer ambiente real, configure AUTH_ENABLED=true e um JWT_SECRET seguro.

@@ -11,6 +11,7 @@ export interface ProductWriteRepository {
 }
 
 export interface ProductReadRepository {
+  findAll(): Promise<Product[]>;
   findById(id: string): Promise<Product | null>;
   upsertProjection(product: Product): Promise<void>;
 }

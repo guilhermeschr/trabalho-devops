@@ -56,6 +56,7 @@ function setup() {
   };
   (amqp.connect as jest.Mock).mockResolvedValue(connection);
   const readRepository: ProductReadRepository = {
+    findAll: jest.fn(),
     findById: jest.fn(),
     upsertProjection: jest.fn().mockResolvedValue(undefined),
   };

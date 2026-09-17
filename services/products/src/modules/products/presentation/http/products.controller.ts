@@ -26,7 +26,7 @@ import { CreateProductDto } from '../../application/dto/create-product.dto';
 import { ProductResponseDto } from '../../application/dto/product-response.dto';
 import { UpdateProductDto } from '../../application/dto/update-product.dto';
 import { CreateProductUseCase } from '../../application/use-cases/create-product.use-case';
-import { GetProductUseCase } from '../../application/use-cases/get-product.use-case';
+import { ListProductsUseCase } from '../../application/use-cases/list-products.use-case';
 import { UpdateProductUseCase } from '../../application/use-cases/update-product.use-case';
 import { JwtAuthGuard } from '../../infrastructure/auth/jwt-auth.guard';
 import { rethrowProductHttpError } from './product-http-error';
@@ -42,8 +42,16 @@ export class ProductsController {
   constructor(
     private readonly createProduct: CreateProductUseCase,
     private readonly updateProduct: UpdateProductUseCase,
-    private readonly getProduct: GetProductUseCase,
+    private readonly listProducts: ListProductsUseCase,
   ) {}
+
+  @Get()
+  @ApiOperation({ summary: 'Consultar todos os produtos' })
+  @ApiOkResponse({ type: ProductResponseDto, isArray: true })
+  async findAll(): Promise<ProductResponseDto[]> {
+    const products = await this.listProducts.execute();
+    return products.map((product) => ProductResponseDto.fromDomain(product));
+  }
 
   @Post()
   @ApiOperation({ summary: 'Criar produto' })
@@ -90,24 +98,4 @@ export class ProductsController {
     }
   }
 
-  @Get(':id')
-  @ApiOperation({ summary: 'Consultar produto' })
-  @ApiParam({
-    name: 'id',
-    description: 'Identificador UUID do produto',
-    format: 'uuid',
-    example: '33eba94f-f9d2-4d91-bfc7-c272a9067304',
-  })
-  @ApiOkResponse({ type: ProductResponseDto })
-  @ApiNotFoundResponse({ type: ErrorResponseDto })
-  async findOne(
-    @Param('id', new ParseUUIDPipe()) id: string,
-  ): Promise<ProductResponseDto> {
-    try {
-      const product = await this.getProduct.execute(id);
-      return ProductResponseDto.fromDomain(product);
-    } catch (error) {
-      rethrowProductHttpError(error);
-    }
-  }
 }

@@ -102,6 +102,7 @@ describe('TypeOrmProductWriteRepository', () => {
 });
 
 function readDataSource(repository: {
+  find?: jest.Mock;
   findOne?: jest.Mock;
   upsert?: jest.Mock;
   save?: jest.Mock;
@@ -112,6 +113,56 @@ function readDataSource(repository: {
 }
 
 describe('TypeOrmProductReadRepository', () => {
+  it('consulta todos os produtos na projeção de leitura', async () => {
+    const entities = [
+      Object.assign(new ProductReadOrmEntity(), {
+        id: productId,
+        name: 'Pizza',
+        description: null,
+        price: 39.9,
+        active: true,
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+      }),
+      Object.assign(new ProductReadOrmEntity(), {
+        id: 'c4d3e2f1-9876-5432-10ab-cdef98765432',
+        name: 'Refrigerante',
+        description: null,
+        price: 8.5,
+        active: false,
+        createdAt: new Date('2026-01-02T00:00:00.000Z'),
+        updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+      }),
+    ];
+    const readRepository = {
+      find: jest.fn().mockResolvedValue(entities),
+    };
+    const repository = new TypeOrmProductReadRepository(
+      readDataSource(readRepository),
+    );
+
+    await expect(repository.findAll()).resolves.toEqual([
+      expect.objectContaining({ id: productId, price: 39.9 }),
+      expect.objectContaining({
+        id: 'c4d3e2f1-9876-5432-10ab-cdef98765432',
+        price: 8.5,
+        active: false,
+      }),
+    ]);
+    expect(readRepository.find).toHaveBeenCalledWith();
+  });
+
+  it('retorna lista vazia quando não há produtos projetados', async () => {
+    const readRepository = {
+      find: jest.fn().mockResolvedValue([]),
+    };
+    const repository = new TypeOrmProductReadRepository(
+      readDataSource(readRepository),
+    );
+
+    await expect(repository.findAll()).resolves.toEqual([]);
+  });
+
   it('consulta somente a projeção de leitura', async () => {
     const entity = Object.assign(new ProductReadOrmEntity(), {
       id: productId,

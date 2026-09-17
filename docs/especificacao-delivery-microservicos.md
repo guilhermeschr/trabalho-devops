@@ -1,7 +1,7 @@
 # Especificação do Sistema de Delivery com Microsserviços
 
 **Status:** especificação de referência para implementação
-**Versão:** 1.5
+**Versão:** 1.6
 **Última atualização:** 2026-09-17
 **Idioma:** português
 **Objetivo:** orientar a construção, execução e validação de um sistema simples de delivery com foco em DevOps.
@@ -10,6 +10,7 @@
 
 | Versão | Data | Alteração |
 |---|---|---|
+| 1.6 | 2026-09-17 | Adicionada a consulta de todos os produtos e removida a consulta pública de produto por ID, mantendo a edição e a consulta interna |
 | 1.5 | 2026-09-17 | Corrigidos o carregamento do `.env` da raiz nos comandos Docker Compose e o serviço usado no comando de logs |
 | 1.4 | 2026-09-17 | Adicionada documentação Swagger/OpenAPI de todas as rotas, validação automatizada do contrato e controle de habilitação por ambiente |
 | 1.3 | 2026-09-17 | Ajustada a rede Docker para permitir a publicação do gateway Nginx no host, mantendo bancos e RabbitMQ sem portas externas |
@@ -132,7 +133,7 @@ Content-Type: application/json
 | POST | /api/v1/auth/login | Auth | Pública | Autenticar usuário e emitir JWT |
 | POST | /api/v1/products | Produtos | JWT | Criar produto |
 | PUT | /api/v1/products/:id | Produtos | JWT | Editar produto |
-| GET | /api/v1/products/:id | Produtos | JWT | Consultar produto |
+| GET | /api/v1/products | Produtos | JWT | Consultar todos os produtos |
 | POST | /api/v1/inventory | Estoque | JWT | Criar ou adicionar estoque |
 | GET | /api/v1/inventory/:productId | Estoque | JWT | Consultar estoque |
 | POST | /api/v1/orders | Pedidos | JWT | Criar pedido |
@@ -258,26 +259,33 @@ Regras:
 - Produto inexistente deverá retornar 404.
 - O preço deverá ser positivo e possuir no máximo duas casas decimais.
 
-### 3.5 Consultar produto
+### 3.5 Consultar todos os produtos
 
 #### Requisição
 
-GET /api/v1/products/:id
+GET /api/v1/products
 
 #### Resposta 200 OK
 
 ~~~json
-{
-  "id": "4e1d9d5b-14b7-4599-9f8b-1b6d0f4e4c20",
-  "name": "Hambúrguer artesanal especial",
-  "description": "Hambúrguer com queijo, bacon e molho especial",
-  "price": 34.90,
-  "active": true,
-  "updatedAt": "2026-09-16T15:10:00.000Z"
-}
+[
+  {
+    "id": "4e1d9d5b-14b7-4599-9f8b-1b6d0f4e4c20",
+    "name": "Hambúrguer artesanal especial",
+    "description": "Hambúrguer com queijo, bacon e molho especial",
+    "price": 34.90,
+    "active": true,
+    "createdAt": "2026-09-16T15:05:00.000Z",
+    "updatedAt": "2026-09-16T15:10:00.000Z"
+  }
+]
 ~~~
 
-Essa rota deverá consultar exclusivamente "products-read-db". Como o modelo de leitura é eventualmente consistente, uma criação ou edição poderá levar alguns instantes para aparecer nessa rota.
+Essa rota deverá consultar exclusivamente "products-read-db" e retornar
+produtos ativos e inativos. Quando não houver produtos projetados, deverá
+retornar um array vazio. Não haverá paginação, filtros ou parâmetros de
+consulta nesta versão. Como o modelo de leitura é eventualmente consistente,
+uma criação ou edição poderá levar alguns instantes para aparecer nessa rota.
 
 ### 3.6 Adicionar estoque
 
@@ -787,8 +795,10 @@ Na versão completa, o Nginx deverá encaminhar:
 /api/v1/orders      -> orders-service
 ~~~
 
-Na implementação inicial, somente "/api/v1/products" deverá ser encaminhado
-para "products-service". Nenhuma rota "/internal/" deverá ser encaminhada.
+Na implementação inicial, "/api/v1/products" deverá ser encaminhado para
+"products-service" para as operações de criação e consulta. O caminho
+"/api/v1/products/:id" deverá ser encaminhado somente para a operação PUT de
+edição. Nenhuma rota "/internal/" deverá ser encaminhada.
 
 O Nginx deverá:
 
@@ -817,8 +827,8 @@ O documento deverá conter todas as rotas implementadas no serviço:
 | Método | Rota | Tag |
 |---|---|---|
 | POST | /api/v1/products | Produtos |
+| GET | /api/v1/products | Produtos |
 | PUT | /api/v1/products/{id} | Produtos |
-| GET | /api/v1/products/{id} | Produtos |
 | GET | /internal/v1/products/{id} | Produtos internos |
 | GET | /health | Infraestrutura |
 

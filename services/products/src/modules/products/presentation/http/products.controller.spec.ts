@@ -4,6 +4,7 @@ import { UpdateProductDto } from '../../application/dto/update-product.dto';
 import { ProductNotFoundError } from '../../domain/product';
 import { CreateProductUseCase } from '../../application/use-cases/create-product.use-case';
 import { GetProductUseCase } from '../../application/use-cases/get-product.use-case';
+import { ListProductsUseCase } from '../../application/use-cases/list-products.use-case';
 import { UpdateProductUseCase } from '../../application/use-cases/update-product.use-case';
 import { InternalProductsController } from './internal-products.controller';
 import { ProductsController } from './products.controller';
@@ -24,8 +25,8 @@ describe('controllers HTTP de Produto', () => {
       execute: jest.fn().mockResolvedValue(product),
     } as unknown as CreateProductUseCase;
     const update = {} as UpdateProductUseCase;
-    const get = {} as GetProductUseCase;
-    const controller = new ProductsController(create, update, get);
+    const list = {} as ListProductsUseCase;
+    const controller = new ProductsController(create, update, list);
     const dto = {
       name: 'Pizza',
       price: 39.9,
@@ -38,17 +39,14 @@ describe('controllers HTTP de Produto', () => {
     expect(create.execute).toHaveBeenCalledWith(dto);
   });
 
-  it('edita e consulta produto', async () => {
+  it('edita produto', async () => {
     const update = {
       execute: jest.fn().mockResolvedValue(product),
     } as unknown as UpdateProductUseCase;
-    const get = {
-      execute: jest.fn().mockResolvedValue(product),
-    } as unknown as GetProductUseCase;
     const controller = new ProductsController(
       {} as CreateProductUseCase,
       update,
-      get,
+      {} as ListProductsUseCase,
     );
     const dto = {
       name: 'Pizza',
@@ -59,9 +57,26 @@ describe('controllers HTTP de Produto', () => {
     await expect(controller.update(product.id, dto)).resolves.toMatchObject({
       id: product.id,
     });
-    await expect(controller.findOne(product.id)).resolves.toMatchObject({
-      id: product.id,
-    });
+  });
+
+  it('lista produtos e transforma a resposta para o contrato HTTP', async () => {
+    const list = {
+      execute: jest.fn().mockResolvedValue([product]),
+    } as unknown as ListProductsUseCase;
+    const controller = new ProductsController(
+      {} as CreateProductUseCase,
+      {} as UpdateProductUseCase,
+      list,
+    );
+
+    await expect(controller.findAll()).resolves.toEqual([
+      expect.objectContaining({
+        id: product.id,
+        name: product.name,
+        price: product.price,
+      }),
+    ]);
+    expect(list.execute).toHaveBeenCalledTimes(1);
   });
 
   it('mapeia produto inexistente para 404', async () => {
@@ -71,15 +86,10 @@ describe('controllers HTTP de Produto', () => {
       {
         execute: jest.fn().mockRejectedValue(missing),
       } as unknown as UpdateProductUseCase,
-      {
-        execute: jest.fn().mockRejectedValue(missing),
-      } as unknown as GetProductUseCase,
+      {} as ListProductsUseCase,
     );
 
     await expect(controller.update(product.id, {} as UpdateProductDto)).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
-    await expect(controller.findOne(product.id)).rejects.toBeInstanceOf(
       NotFoundException,
     );
   });

@@ -8,6 +8,7 @@ import {
 } from '../ports/product.repositories';
 import { CreateProductUseCase } from './create-product.use-case';
 import { GetProductUseCase } from './get-product.use-case';
+import { ListProductsUseCase } from './list-products.use-case';
 import { UpdateProductUseCase } from './update-product.use-case';
 
 const product: Product = {
@@ -61,6 +62,7 @@ describe('casos de uso de Produto', () => {
 
   it('consulta produto no repositório de leitura', async () => {
     const repository: ProductReadRepository = {
+      findAll: jest.fn(),
       findById: jest.fn().mockResolvedValue(product),
       upsertProjection: jest.fn(),
     };
@@ -72,6 +74,7 @@ describe('casos de uso de Produto', () => {
 
   it('informa quando o produto não existe na projeção', async () => {
     const repository: ProductReadRepository = {
+      findAll: jest.fn(),
       findById: jest.fn().mockResolvedValue(null),
       upsertProjection: jest.fn(),
     };
@@ -80,5 +83,18 @@ describe('casos de uso de Produto', () => {
     await expect(useCase.execute(product.id)).rejects.toBeInstanceOf(
       ProductNotFoundError,
     );
+  });
+
+  it('lista todos os produtos usando o repositório de leitura', async () => {
+    const products = [product, { ...product, id: 'outro-produto' }];
+    const repository: ProductReadRepository = {
+      findAll: jest.fn().mockResolvedValue(products),
+      findById: jest.fn(),
+      upsertProjection: jest.fn(),
+    };
+    const useCase = new ListProductsUseCase(repository);
+
+    await expect(useCase.execute()).resolves.toBe(products);
+    expect(repository.findAll).toHaveBeenCalledTimes(1);
   });
 });

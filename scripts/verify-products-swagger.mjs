@@ -65,30 +65,47 @@ async function main() {
     'Corpo JSON ausente na criação de produto',
   );
 
-  for (const method of ['get', 'put']) {
-    const operation = getOperation(document, '/api/v1/products/{id}', method);
-    assertTag(operation, '/api/v1/products/{id}', method, 'Produtos');
-    assertResponses(operation, '/api/v1/products/{id}', method, [
-      '200',
-      '400',
-      '401',
-      '404',
-      '500',
-    ]);
-    assert(
-      operation.security?.some((security) => security.jwt),
-      `Autenticação JWT ausente em ${method.toUpperCase()} /api/v1/products/{id}`,
-    );
-    assert(
-      operation.parameters?.some(
-        (parameter) =>
-          parameter.name === 'id' &&
-          parameter.in === 'path' &&
-          parameter.required === true,
-      ),
-      `Parâmetro id ausente em ${method.toUpperCase()} /api/v1/products/{id}`,
-    );
-  }
+  const list = getOperation(document, '/api/v1/products', 'get');
+  assertTag(list, '/api/v1/products', 'get', 'Produtos');
+  assertResponses(list, '/api/v1/products', 'get', ['200', '401', '500']);
+  assert(
+    list.security?.some((security) => security.jwt),
+    'Autenticação JWT ausente na listagem de produtos',
+  );
+  const listSchema =
+    list.responses?.['200']?.content?.['application/json']?.schema;
+  assert(
+    listSchema?.type === 'array' &&
+      listSchema.items?.$ref === '#/components/schemas/ProductResponseDto',
+    'Resposta da listagem de produtos não é um array de ProductResponseDto',
+  );
+
+  const update = getOperation(document, '/api/v1/products/{id}', 'put');
+  assertTag(update, '/api/v1/products/{id}', 'put', 'Produtos');
+  assertResponses(update, '/api/v1/products/{id}', 'put', [
+    '200',
+    '400',
+    '401',
+    '404',
+    '500',
+  ]);
+  assert(
+    update.security?.some((security) => security.jwt),
+    'Autenticação JWT ausente em PUT /api/v1/products/{id}',
+  );
+  assert(
+    update.parameters?.some(
+      (parameter) =>
+        parameter.name === 'id' &&
+        parameter.in === 'path' &&
+        parameter.required === true,
+    ),
+    'Parâmetro id ausente em PUT /api/v1/products/{id}',
+  );
+  assert(
+    !document.paths?.['/api/v1/products/{id}']?.get,
+    'GET /api/v1/products/{id} não deveria existir no Swagger',
+  );
 
   const internal = getOperation(
     document,
