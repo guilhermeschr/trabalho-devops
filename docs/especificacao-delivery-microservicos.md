@@ -1,8 +1,8 @@
 # Especificação do Sistema de Delivery com Microsserviços
 
 **Status:** especificação de referência para implementação
-**Versão:** 1.8
-**Última atualização:** 2026-09-17
+**Versão:** 1.9
+**Última atualização:** 2026-09-18
 **Idioma:** português
 **Objetivo:** orientar a construção, execução e validação de um sistema simples de delivery com foco em DevOps.
 
@@ -10,6 +10,7 @@
 
 | Versão | Data | Alteração |
 |---|---|---|
+| 1.9 | 2026-09-18 | Implementado Estoque com CQRS, débito idempotente concorrente, projeção versionada, Outbox, Swagger e infraestrutura; normalizado nome Compose para delivery |
 | 1.8 | 2026-09-17 | Adicionados os filtros opcionais por ID exato e nome parcial na consulta de produtos, com contrato Swagger e validação automatizada |
 | 1.7 | 2026-09-17 | Tornada obrigatória a recriação do container e a validação HTTP da interface `/docs` e do documento `/docs-json` |
 | 1.6 | 2026-09-17 | Adicionada a consulta de todos os produtos e removida a consulta pública de produto por ID, mantendo a edição e a consulta interna |
@@ -740,16 +741,19 @@ independentemente de "AUTH_ENABLED".
 
 ## 10. Docker Compose e configuração
 
-Na implementação inicial do microsserviço de Produtos, o arquivo
-`infra/docker/docker-compose.yml` deverá conter somente:
+Na implementação atual, o arquivo
+`infra/docker/docker-compose.yml` contém:
 
 - "nginx-gateway"
 - "products-service"
 - "products-write-db"
 - "products-read-db"
+- "inventory-service"
+- "inventory-write-db"
+- "inventory-read-db"
 - "rabbitmq"
 
-Auth, Estoque, Pedidos e os demais bancos serão adicionados em etapas
+Auth, Pedidos e os demais bancos serão adicionados em etapas
 posteriores. Na versão completa do sistema, o Compose deverá conter:
 
 - "nginx-gateway"
@@ -1028,7 +1032,7 @@ O trabalho deverá ser considerado inválido se qualquer microsserviço ficar ab
 - Produtos e Estoque utilizam CQRS.
 - A consistência dos bancos de leitura é eventual.
 - Rotas internas são protegidas por "X-Internal-Token".
-- A implementação é incremental; nesta etapa somente Produtos está ativo.
+- A implementação é incremental; nesta etapa Produtos e Estoque estão ativos.
 
 ## 16. Estado da implementação inicial
 
@@ -1051,6 +1055,86 @@ do sistema:
 - A cobertura do serviço de Produtos possui limiar de 50% para branches,
   functions, lines e statements, com suíte unitária independente.
 
-As próximas implementações deverão adicionar Auth, Estoque e Pedidos sem
+As próximas implementações deverão adicionar Auth e Pedidos sem
 alterar os limites de dados, rotas internas e contratos definidos nesta
 especificação.
+
+
+## 17. Implementação de Estoque (versão 1.9)
+
+`services/inventory` é um workspace NestJS independente. Mantém controllers,
+casos de uso, interfaces e adaptadores TypeORM com conexões `inventoryWrite`
+e `inventoryRead`. Migrações são executadas na inicialização, sem synchronize.
+
+### Contratos e regras
+
+- `POST /api/v1/inventory`: cria ou soma quantidade; retorna 200 com
+  `productId`, `availableQuantity`, `updatedAt`.
+- `GET /api/v1/inventory/:productId`: consulta apenas a projeção; retorna 200
+  ou 404 (`STOCK_NOT_FOUND`) se ainda não existir na leitura.
+- `POST /internal/v1/inventory/debit`: retorna 200 com `orderId`, `productId`,
+  `debitedQuantity`, `remainingQuantity`. Requer `X-Internal-Token`; token
+  ausente/incorreto retorna 403, como em Produtos.
+- IDs devem ser UUIDs. Quantidade deve ser inteiro entre 1 e 2147483647.
+  Campos desconhecidos e entradas inválidas retornam 400.
+- Saldo acima de 2147483647 retorna 409 (`STOCK_LIMIT_EXCEEDED`).
+- Débito sem estoque ou maior que o saldo retorna 409 (`INSUFFICIENT_STOCK`).
+- Repetição do mesmo `orderId`, produto e quantidade retorna a resposta original,
+  sem nova movimentação ou evento. Mesmo pedido com dados diferentes retorna
+  409 (`IDEMPOTENCY_CONFLICT`).
+- JWT é obrigatório nas rotas públicas de Estoque, inclusive no ambiente local.
+  `AUTH_ENABLED=false` continua restrito a Produtos; use o gerador de JWT do projeto.
+- O cadastro de estoque recebe o UUID do produto sem consultar outro banco ou
+  serviço; validação da existência do produto não faz parte deste contrato.
+
+### Consistência e concorrência
+
+`stock`, `stock_movements` e `outbox_events` são gravados na mesma transação.
+Locks transacionais por produto serializam adições e débitos; locks por pedido
+serializam tentativas idempotentes. Há unicidade de `order_id` e restrição de
+saldo não negativo no PostgreSQL. Tentativas insuficientes não reservam o pedido.
+
+Cada alteração incrementa a versão do agregado e gera `inventory.stock_added`
+ou `inventory.stock_debited`, com payload `{productId, availableQuantity, updatedAt}`.
+O worker mantém eventos pendentes até confirmação do RabbitMQ.
+Conexões encerradas são recriadas; o consumidor tenta reconectar a cada segundo. A fila durável
+`inventory.read.projector` recebe `inventory.*` no exchange `delivery.events`.
+A projeção e o registro de `eventId` processado são transacionais. Eventos
+repetidos são ignorados; versões antigas não sobrescrevem versões novas.
+O consumidor confirma somente após commit; falhas de persistência são reenviadas.
+Mensagens malformadas são rejeitadas sem reenvio, com aviso de log.
+
+### Infraestrutura e documentação
+
+O Compose `delivery` adiciona Estoque e dois PostgreSQL privados com volumes
+`inventory-write-data` e `inventory-read-data`. Nenhuma porta adicional é publicada.
+O Nginx encaminha `/api/v1/inventory` e bloqueia `/internal/`.
+Swagger interno usa `/docs` e `/docs-json`; pelo gateway, fica em
+`/inventory/docs` e `/inventory/docs-json`. Só é habilitado com
+`SWAGGER_ENABLED=true` fora de produção. Produtos mantém seus endpoints anteriores.
+
+Configuração: `INVENTORY_PORT`, `INVENTORY_WRITE_DB_{HOST,PORT,NAME,USER,PASSWORD}`,
+`INVENTORY_READ_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `RABBITMQ_INVENTORY_QUEUE`,
+`RABBITMQ_URL`, `RABBITMQ_EXCHANGE`, `JWT_SECRET`, `INTERNAL_SERVICE_TOKEN`
+e `SWAGGER_ENABLED`. Exemplos locais ficam em `.env.example`.
+
+Validação:
+
+~~~bash
+npm run typecheck
+npm run test:inventory
+npm run test:products
+npm run build:inventory
+npm run infra:up
+npm run verify:swagger:products
+npm run verify:swagger:inventory
+docker compose --env-file .env -f infra/docker/docker-compose.yml exec -T inventory-service node < scripts/verify-inventory-flow.cjs
+~~~
+
+O roteiro de fluxo cria dados de teste com UUIDs novos: verifica JWT, token
+interno, bloqueio pelo gateway, adição, projeção, dez débitos simultâneos do
+mesmo pedido, débitos concorrentes com estoque limitado, movimentações, Outbox
+e evento antigo. Execute-o em ambiente de desenvolvimento/teste.
+A suíte própria exige ao menos 50% nas quatro métricas de cobertura.
+Auth e Pedidos ainda não estão implementados; o fluxo completo da seção 12.3
+permanece para a integração futura desses serviços.

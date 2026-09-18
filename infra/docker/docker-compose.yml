@@ -1,4 +1,4 @@
-name: Sistema Delivery Microserviços
+name: delivery
 services:
   products-service:
     build:
@@ -79,6 +79,84 @@ services:
       timeout: 5s
       retries: 10
 
+  inventory-service:
+    build:
+      context: ../..
+      dockerfile: services/inventory/Dockerfile
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      INVENTORY_PORT: 3000
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-development}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-3600s}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-change-me-internal-development}
+      INVENTORY_WRITE_DB_HOST: inventory-write-db
+      INVENTORY_WRITE_DB_PORT: 5432
+      INVENTORY_WRITE_DB_NAME: inventory_write
+      INVENTORY_WRITE_DB_USER: inventory
+      INVENTORY_WRITE_DB_PASSWORD: inventory
+      INVENTORY_READ_DB_HOST: inventory-read-db
+      INVENTORY_READ_DB_PORT: 5432
+      INVENTORY_READ_DB_NAME: inventory_read
+      INVENTORY_READ_DB_USER: inventory
+      INVENTORY_READ_DB_PASSWORD: inventory
+      RABBITMQ_URL: amqp://products:products@rabbitmq:5672
+      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE:-delivery.events}
+      RABBITMQ_INVENTORY_QUEUE: ${RABBITMQ_INVENTORY_QUEUE:-inventory.read.projector}
+    depends_on:
+      inventory-write-db:
+        condition: service_healthy
+      inventory-read-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - delivery-private
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  inventory-write-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: inventory_write
+      POSTGRES_USER: inventory
+      POSTGRES_PASSWORD: inventory
+    volumes:
+      - inventory-write-data:/var/lib/postgresql/data
+    networks:
+      - delivery-private
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inventory -d inventory_write"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  inventory-read-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: inventory_read
+      POSTGRES_USER: inventory
+      POSTGRES_PASSWORD: inventory
+    volumes:
+      - inventory-read-data:/var/lib/postgresql/data
+    networks:
+      - delivery-private
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inventory -d inventory_read"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
     environment:
@@ -104,6 +182,8 @@ services:
     depends_on:
       products-service:
         condition: service_healthy
+      inventory-service:
+        condition: service_healthy
     networks:
       - delivery-private
     healthcheck:
@@ -120,3 +200,5 @@ volumes:
   products-write-data:
   products-read-data:
   rabbitmq-data:
+  inventory-write-data:
+  inventory-read-data:

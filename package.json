@@ -9,11 +9,15 @@
   "scripts": {
     "build:products": "npm --workspace services/products run build",
     "dev:products": "npm --workspace services/products run start:dev",
-    "typecheck": "npm --workspace services/products run typecheck",
+    "typecheck": "npm run typecheck --workspaces",
     "test:products": "npm --workspace services/products run test:cov --",
     "verify:swagger:products": "node scripts/verify-products-swagger.mjs",
     "infra:config": "docker compose --env-file .env -f infra/docker/docker-compose.yml config",
     "infra:up": "docker compose --env-file .env -f infra/docker/docker-compose.yml up --build --force-recreate",
-    "infra:down": "docker compose --env-file .env -f infra/docker/docker-compose.yml down"
+    "infra:down": "docker compose --env-file .env -f infra/docker/docker-compose.yml down",
+    "build:inventory": "npm --workspace services/inventory run build",
+    "dev:inventory": "npm --workspace services/inventory run start:dev",
+    "test:inventory": "npm --workspace services/inventory run test:cov --",
+    "verify:swagger:inventory": "node scripts/verify-inventory-swagger.mjs"
   }
 }

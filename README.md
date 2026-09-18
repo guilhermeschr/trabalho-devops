@@ -1,6 +1,6 @@
 # Trabalho DevOps
 
-Sistema de delivery com microsserviços. A implementação inicial está sendo feita pelo microsserviço de Produtos.
+Sistema de delivery com microsserviços. Produtos e Estoque estão implementados.
 
 ## Requisitos locais
 
@@ -84,6 +84,29 @@ docker compose --env-file .env -f infra/docker/docker-compose.yml ps
 docker compose --env-file .env -f infra/docker/docker-compose.yml logs -f products-service
 ~~~
 
-A implementação inicial contém somente o microsserviço de Produtos, seus dois
-bancos CQRS, RabbitMQ e o gateway Nginx. Auth, Estoque e Pedidos serão
-adicionados em etapas posteriores.
+A implementação contém Produtos e Estoque, cada um com dois bancos CQRS,
+RabbitMQ e o gateway Nginx. Auth e Pedidos serão adicionados posteriormente.
+
+
+## Estoque
+
+- `POST /api/v1/inventory`: `{ "productId": "<uuid>", "quantity": 20 }`.
+- `GET /api/v1/inventory/:productId`: consulta o saldo projetado.
+- `POST /internal/v1/inventory/debit`: `{ "orderId": "<uuid>", "productId": "<uuid>", "quantity": 2 }`, somente na rede interna com `X-Internal-Token`.
+
+Rotas públicas sempre exigem `Authorization: Bearer <jwt>`, mesmo quando
+`AUTH_ENABLED=false` para Produtos. Gere um JWT com o script descrito acima.
+Débitos repetidos do mesmo pedido retornam a resposta original sem descontar
+novamente; reutilizar o pedido com dados diferentes retorna 409.
+
+Swagger de Estoque: http://localhost:8080/inventory/docs.
+
+~~~bash
+npm run test:inventory
+npm run build:inventory
+npm run verify:swagger:inventory
+docker compose --env-file .env -f infra/docker/docker-compose.yml exec -T inventory-service node < scripts/verify-inventory-flow.cjs
+~~~
+
+O roteiro cria dados de teste. A especificação v1.9 descreve erros,
+concorrência, consistência eventual e variáveis de ambiente de Estoque.
