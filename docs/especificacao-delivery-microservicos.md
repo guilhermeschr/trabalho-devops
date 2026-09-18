@@ -1,8 +1,8 @@
 # Especificação do Sistema de Delivery com Microsserviços
 
 **Status:** especificação de referência para implementação
-**Versão:** 1.8
-**Última atualização:** 2026-09-17
+**Versão:** 2.0
+**Última atualização:** 2026-09-18
 **Idioma:** português
 **Objetivo:** orientar a construção, execução e validação de um sistema simples de delivery com foco em DevOps.
 
@@ -10,6 +10,8 @@
 
 | Versão | Data | Alteração |
 |---|---|---|
+| 2.0 | 2026-09-18 | Migrado somente Estoque para Java 21 e Spring Boot; Spring JDBC, Flyway, JUnit/JaCoCo; preservados contratos HTTP, eventos e dados existentes |
+| 1.9 | 2026-09-18 | Implementado Estoque com CQRS, débito idempotente concorrente, projeção versionada, Outbox, Swagger e infraestrutura; normalizado nome Compose para delivery |
 | 1.8 | 2026-09-17 | Adicionados os filtros opcionais por ID exato e nome parcial na consulta de produtos, com contrato Swagger e validação automatizada |
 | 1.7 | 2026-09-17 | Tornada obrigatória a recriação do container e a validação HTTP da interface `/docs` e do documento `/docs-json` |
 | 1.6 | 2026-09-17 | Adicionada a consulta de todos os produtos e removida a consulta pública de produto por ID, mantendo a edição e a consulta interna |
@@ -32,7 +34,7 @@ O trabalho deverá demonstrar:
 - CQRS nos serviços de Produtos e Estoque.
 - Bancos de escrita e leitura separados para Produtos e Estoque.
 - RabbitMQ para atualização dos modelos de consulta.
-- Injeção de dependências com NestJS.
+- Injeção de dependências com NestJS em Produtos e Spring em Estoque.
 - Testes unitários com cobertura mínima de 50% em cada microsserviço.
 - Execução local reproduzível com Docker Compose.
 
@@ -55,15 +57,15 @@ Não fazem parte desta versão:
 
 | Categoria | Tecnologia |
 |---|---|
-| Linguagem | TypeScript |
-| Runtime | Node.js |
-| Framework | NestJS |
+| Linguagem | TypeScript (Produtos); Java 21 (Estoque) |
+| Runtime | Node.js (Produtos); JVM (Estoque) |
+| Framework | NestJS (Produtos); Spring Boot 3.5.16 (Estoque) |
 | Persistência | PostgreSQL |
-| ORM | TypeORM |
+| Persistência e migrações | TypeORM (Produtos); Spring JDBC e Flyway (Estoque) |
 | Mensageria | RabbitMQ |
 | Gateway | Nginx |
 | Empacotamento | Docker e Docker Compose |
-| Testes | Jest e Supertest |
+| Testes | Jest e Supertest (Produtos); JUnit 5, Mockito, MockMvc, Testcontainers e JaCoCo (Estoque) |
 | Documentação de API | Swagger/OpenAPI |
 
 ### 2.2 Componentes
@@ -686,17 +688,17 @@ Responsabilidades:
 - "presentation": controllers, DTOs e filtros HTTP.
 - "application": casos de uso e portas/interfaces.
 - "domain": entidades e regras de negócio.
-- "infrastructure": TypeORM, RabbitMQ, clientes REST e adaptadores.
+- "infrastructure": TypeORM ou Spring JDBC, RabbitMQ, clientes REST e adaptadores.
 
 Regras obrigatórias:
 
 - Controllers dependem somente de casos de uso.
 - Casos de uso dependem de interfaces, não de implementações concretas.
-- Repositórios TypeORM devem ser registrados com tokens.
+- Em Produtos, repositórios TypeORM são registrados com tokens; em Estoque, implementações das interfaces são beans Spring injetados pelo construtor.
 - Bancos de leitura e escrita devem possuir conexões nomeadas.
 - Clientes REST devem ser providers injetáveis.
 - Publicadores e consumidores RabbitMQ devem ser providers injetáveis.
-- Configurações devem ser obtidas pelo "ConfigService".
+- Configurações são obtidas pelo ConfigService (NestJS) ou pelo Environment/propriedades do Spring, sempre a partir do ambiente.
 - Não usar instanciação manual de dependências dentro de controllers ou casos de uso.
 - Não usar singletons globais para repositórios, clientes HTTP ou conexões.
 
@@ -740,16 +742,19 @@ independentemente de "AUTH_ENABLED".
 
 ## 10. Docker Compose e configuração
 
-Na implementação inicial do microsserviço de Produtos, o arquivo
-`infra/docker/docker-compose.yml` deverá conter somente:
+Na implementação atual, o arquivo
+`infra/docker/docker-compose.yml` contém:
 
 - "nginx-gateway"
 - "products-service"
 - "products-write-db"
 - "products-read-db"
+- "inventory-service"
+- "inventory-write-db"
+- "inventory-read-db"
 - "rabbitmq"
 
-Auth, Estoque, Pedidos e os demais bancos serão adicionados em etapas
+Auth, Pedidos e os demais bancos serão adicionados em etapas
 posteriores. Na versão completa do sistema, o Compose deverá conter:
 
 - "nginx-gateway"
@@ -880,7 +885,7 @@ Cada microsserviço deverá possuir testes unitários independentes.
 
 ### 12.1 Meta de cobertura
 
-A configuração do Jest deverá impedir cobertura inferior a 50% em cada serviço:
+Em Produtos, a configuração do Jest deverá impedir cobertura inferior a 50%:
 
 ~~~typescript
 coverageThreshold: {
@@ -892,6 +897,8 @@ coverageThreshold: {
   }
 }
 ~~~
+
+Em Estoque, `mvn verify` executa JUnit/Mockito e testes de integração com PostgreSQL real via Testcontainers. JaCoCo exige pelo menos 50% em BRANCH, METHOD, LINE e INSTRUCTION; a última mede instruções de bytecode, não statements da linguagem. O build falha quando o limite não é atendido ou quando Docker não está disponível para os testes de integração.
 
 ### 12.2 Casos obrigatórios
 
@@ -1028,7 +1035,7 @@ O trabalho deverá ser considerado inválido se qualquer microsserviço ficar ab
 - Produtos e Estoque utilizam CQRS.
 - A consistência dos bancos de leitura é eventual.
 - Rotas internas são protegidas por "X-Internal-Token".
-- A implementação é incremental; nesta etapa somente Produtos está ativo.
+- A implementação é incremental; nesta etapa Produtos e Estoque estão ativos.
 
 ## 16. Estado da implementação inicial
 
@@ -1051,6 +1058,127 @@ do sistema:
 - A cobertura do serviço de Produtos possui limiar de 50% para branches,
   functions, lines e statements, com suíte unitária independente.
 
-As próximas implementações deverão adicionar Auth, Estoque e Pedidos sem
+As próximas implementações deverão adicionar Auth e Pedidos sem
 alterar os limites de dados, rotas internas e contratos definidos nesta
 especificação.
+
+
+## 17. Implementação de Estoque (versão 2.0)
+
+`services/inventory` é uma aplicação Java 21 / Spring Boot independente,
+construída com Maven. Produtos continua em NestJS. Controllers, casos de uso,
+interfaces e adaptadores Spring JDBC são injetados pelo construtor.
+`StockRules` concentra as regras de quantidade, saldo e repetição de pedidos.
+Há dois DataSources e dois gerenciadores de transação, `writeTransactionManager`
+e `readTransactionManager`. Migrações Flyway são executadas antes dos repositórios.
+
+### Contratos e regras
+
+- `POST /api/v1/inventory`: cria ou soma quantidade; retorna 200 com
+  `productId`, `availableQuantity`, `updatedAt`.
+- `GET /api/v1/inventory/:productId`: consulta apenas a projeção; retorna 200
+  ou 404 (`STOCK_NOT_FOUND`) se ainda não existir na leitura.
+- `POST /internal/v1/inventory/debit`: retorna 200 com `orderId`, `productId`,
+  `debitedQuantity`, `remainingQuantity`. Requer `X-Internal-Token`; token
+  ausente/incorreto retorna 403, como em Produtos.
+- IDs devem ser UUIDs. Quantidade deve ser inteiro entre 1 e 2147483647.
+  Campos desconhecidos e entradas inválidas retornam 400.
+- Saldo acima de 2147483647 retorna 409 (`STOCK_LIMIT_EXCEEDED`).
+- Débito sem estoque ou maior que o saldo retorna 409 (`INSUFFICIENT_STOCK`).
+- Repetição do mesmo `orderId`, produto e quantidade retorna a resposta original,
+  sem nova movimentação ou evento. Mesmo pedido com dados diferentes retorna
+  409 (`IDEMPOTENCY_CONFLICT`).
+- JWT é obrigatório nas rotas públicas de Estoque, inclusive no ambiente local.
+  `AUTH_ENABLED=false` continua restrito a Produtos; use o gerador de JWT do projeto.
+- O cadastro de estoque recebe o UUID do produto sem consultar outro banco ou
+  serviço; validação da existência do produto não faz parte deste contrato.
+
+### Consistência e concorrência
+
+`stock`, `stock_movements` e `outbox_events` são gravados na mesma transação.
+Locks transacionais por produto serializam adições e débitos; locks por pedido
+serializam tentativas idempotentes. Há unicidade de `order_id` e restrição de
+saldo não negativo no PostgreSQL. Tentativas insuficientes não reservam o pedido.
+
+Cada alteração incrementa a versão do agregado e gera `inventory.stock_added`
+ou `inventory.stock_debited`, com payload `{productId, availableQuantity, updatedAt}`.
+O worker mantém eventos pendentes até confirmação do RabbitMQ.
+Spring AMQP administra a recuperação de conexões; o publicador aguarda confirmação por até cinco segundos. Publicações sem fila de destino também permanecem pendentes. A fila durável
+`inventory.read.projector` recebe `inventory.*` no exchange `delivery.events`.
+A projeção e o registro de `eventId` processado são transacionais. Eventos
+repetidos são ignorados; versões antigas não sobrescrevem versões novas.
+O listener Spring AMQP confirma automaticamente somente após a projeção transacional retornar (commit); falhas de persistência são reenviadas.
+Mensagens malformadas são rejeitadas sem reenvio, pelo tratamento de erros do listener.
+
+### Infraestrutura e documentação
+
+O Compose `delivery` adiciona Estoque e dois PostgreSQL privados com volumes
+`inventory-write-data` e `inventory-read-data`. Nenhuma porta adicional é publicada.
+O Nginx encaminha `/api/v1/inventory` e bloqueia `/internal/`.
+Swagger interno usa `/docs` e `/docs-json`; pelo gateway, fica em
+`/inventory/docs` e `/inventory/docs-json`. Só é habilitado com
+`SWAGGER_ENABLED=true` fora de produção. `NODE_ENV=production` e os perfis Spring `prod`/`production` desabilitam Swagger mesmo com a flag ativa. Os recursos estáticos locais são encaminhados por `/inventory/swagger-ui/`. Produtos mantém seus endpoints anteriores.
+
+Configuração: `INVENTORY_PORT`, `INVENTORY_WRITE_DB_{HOST,PORT,NAME,USER,PASSWORD}`,
+`INVENTORY_READ_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `RABBITMQ_INVENTORY_QUEUE`,
+`RABBITMQ_URL`, `RABBITMQ_EXCHANGE`, `JWT_SECRET`, `INTERNAL_SERVICE_TOKEN`
+e `SWAGGER_ENABLED`. Exemplos locais ficam em `.env.example`.
+
+Validação:
+
+~~~bash
+npm run typecheck
+npm run test:inventory
+npm run test:products
+npm run build:inventory
+npm run infra:up
+npm run verify:swagger:products
+npm run verify:swagger:inventory
+npm run verify:flow:inventory
+~~~
+
+O roteiro de fluxo cria dados de teste com UUIDs novos: verifica JWT, token
+interno, bloqueio pelo gateway, adição, projeção, dez débitos simultâneos do
+mesmo pedido, débitos concorrentes com estoque limitado, movimentações, Outbox
+e evento antigo. Execute-o em ambiente de desenvolvimento/teste.
+A suíte própria exige ao menos 50% nas quatro métricas JaCoCo definidas na seção 12.1.
+Auth e Pedidos ainda não estão implementados; o fluxo completo da seção 12.3
+permanece para a integração futura desses serviços.
+
+
+### 17.1 Preservação dos dados da versão NestJS
+
+Os nomes, colunas e restrições das tabelas permanecem compatíveis com a v1.9.
+Flyway usa baseline 0 para bancos existentes e migrações V1 idempotentes que
+criam apenas tabelas/índices ausentes. A antiga tabela `migrations` do TypeORM
+é preservada. Não há limpeza de volumes nem cópia entre bancos.
+
+Antes de atualizar um ambiente com dados importantes, faça backup dos dois
+bancos. Recrie apenas a aplicação com a imagem Java e mantenha os volumes.
+Não use `docker compose down --volumes` nesse ambiente. Os testes automatizados
+preparam o esquema antigo com saldo, projeção e débito e confirmam que o novo
+serviço mantém o saldo e reconhece o pedido já processado.
+
+### 17.2 Build e validação
+
+- JDK 21 e Maven 3.9+ para execução fora do Docker.
+- `mvn -f services/inventory/pom.xml test`: testes unitários, sem Docker.
+- `mvn -f services/inventory/pom.xml verify`: unitários + integração PostgreSQL
+  com Testcontainers + cobertura JaCoCo. Exige Docker; os testes não são omitidos
+  silenciosamente quando ele está indisponível.
+- `mvn -f services/inventory/pom.xml -DskipTests package`: gera o JAR executável.
+- Relatório: `services/inventory/target/site/jacoco/index.html`.
+- O Dockerfile compila com Maven/JDK 21 e executa somente Java no estágio final.
+- O health check usa `wget` em `/health`; a porta interna continua 3000.
+- `npm run verify:flow:inventory` usa o container auxiliar `inventory-check`,
+  ativado apenas pelo perfil Compose `tools`. Ele contém Node para executar o
+  roteiro já existente; o serviço de Estoque não depende de Node.
+- Os únicos workspaces npm são os serviços TypeScript, atualmente Produtos.
+
+### 17.3 Mapa das classes para estudo
+
+Veja `services/inventory/README.md`: o fluxo principal é
+`InventoryController → AddStockUseCase → StockWriteRepository → StockWriteJdbcRepository`.
+`StockRules` contém as regras, executadas dentro da transação pelo adaptador
+quando dependem do saldo. `OutboxPublisherWorker` publica eventos e
+`StockReadProjectorConsumer` atualiza o banco de leitura.
