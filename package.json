@@ -4,7 +4,7 @@
   "private": true,
   "description": "Sistema de delivery com microsserviços",
   "workspaces": [
-    "services/*"
+    "services/products"
   ],
   "scripts": {
     "build:products": "npm --workspace services/products run build",
@@ -15,9 +15,10 @@
     "infra:config": "docker compose --env-file .env -f infra/docker/docker-compose.yml config",
     "infra:up": "docker compose --env-file .env -f infra/docker/docker-compose.yml up --build --force-recreate",
     "infra:down": "docker compose --env-file .env -f infra/docker/docker-compose.yml down",
-    "build:inventory": "npm --workspace services/inventory run build",
-    "dev:inventory": "npm --workspace services/inventory run start:dev",
-    "test:inventory": "npm --workspace services/inventory run test:cov --",
-    "verify:swagger:inventory": "node scripts/verify-inventory-swagger.mjs"
+    "build:inventory": "mvn -f services/inventory/pom.xml -DskipTests package",
+    "dev:inventory": "mvn -f services/inventory/pom.xml spring-boot:run",
+    "test:inventory": "mvn -f services/inventory/pom.xml verify",
+    "verify:swagger:inventory": "node scripts/verify-inventory-swagger.mjs",
+    "verify:flow:inventory": "docker compose --env-file .env -f infra/docker/docker-compose.yml --profile tools run --rm inventory-check"
   }
 }

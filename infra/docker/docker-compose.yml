@@ -113,17 +113,11 @@ services:
     networks:
       - delivery-private
     healthcheck:
-      test:
-        [
-          "CMD",
-          "node",
-          "-e",
-          "fetch('http://localhost:3000/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"
-        ]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/health"]
       interval: 10s
       timeout: 5s
       retries: 10
-      start_period: 20s
+      start_period: 40s
 
   inventory-write-db:
     image: postgres:16-alpine
@@ -191,6 +185,29 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  inventory-check:
+    profiles: ["tools"]
+    build:
+      context: ../..
+      dockerfile: scripts/Dockerfile.inventory-check
+    environment:
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-development}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-change-me-internal-development}
+      INVENTORY_INTERNAL_URL: http://inventory-service:3000
+      INVENTORY_WRITE_DB_HOST: inventory-write-db
+      INVENTORY_WRITE_DB_USER: inventory
+      INVENTORY_WRITE_DB_PASSWORD: inventory
+      INVENTORY_WRITE_DB_NAME: inventory_write
+      RABBITMQ_URL: amqp://products:products@rabbitmq:5672
+      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE:-delivery.events}
+    depends_on:
+      inventory-service:
+        condition: service_healthy
+      nginx-gateway:
+        condition: service_healthy
+    networks:
+      - delivery-private
 
 networks:
   delivery-private:

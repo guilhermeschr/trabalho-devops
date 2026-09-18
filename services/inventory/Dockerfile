@@ -1,28 +1,14 @@
-FROM node:24-alpine AS build
-
+FROM maven:3.9.11-eclipse-temurin-21 AS build
 WORKDIR /app
+COPY services/inventory/pom.xml ./pom.xml
+RUN mvn -B dependency:go-offline
+COPY services/inventory/src ./src
+RUN mvn -B -DskipTests package
 
-COPY package.json package-lock.json ./
-COPY services/inventory/package.json services/inventory/package.json
-COPY services/products/package.json services/products/package.json
-RUN npm ci
-
-COPY tsconfig.base.json ./
-COPY services/inventory services/inventory
-RUN npm run build:inventory
-
-FROM node:24-alpine AS runtime
-
+FROM eclipse-temurin:21-jre-alpine AS runtime
 WORKDIR /app
-ENV NODE_ENV=stockion
-
-COPY package.json package-lock.json ./
-COPY services/inventory/package.json services/inventory/package.json
-COPY services/products/package.json services/products/package.json
-RUN npm ci --omit=dev
-
-COPY --from=build /app/services/inventory/dist services/inventory/dist
-
-USER node
+RUN addgroup -S inventory && adduser -S inventory -G inventory
+COPY --from=build /app/target/inventory-service-0.1.0.jar app.jar
+USER inventory
 EXPOSE 3000
-CMD ["node", "services/inventory/dist/main.js"]
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

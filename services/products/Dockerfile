@@ -4,7 +4,6 @@ WORKDIR /app
 
 COPY package.json package-lock.json ./
 COPY services/products/package.json services/products/package.json
-COPY services/inventory/package.json services/inventory/package.json
 RUN npm ci
 
 COPY tsconfig.base.json ./
@@ -18,7 +17,6 @@ ENV NODE_ENV=production
 
 COPY package.json package-lock.json ./
 COPY services/products/package.json services/products/package.json
-COPY services/inventory/package.json services/inventory/package.json
 RUN npm ci --omit=dev
 
 COPY --from=build /app/services/products/dist services/products/dist

@@ -6,3 +6,5 @@ dist
 services/products/dist
 services/products/coverage
 npm-debug.log
+
+services/inventory/target

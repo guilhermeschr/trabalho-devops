@@ -1,0 +1,4 @@
+CREATE TABLE IF NOT EXISTS stock (product_id uuid PRIMARY KEY, available_quantity integer NOT NULL CHECK (available_quantity >= 0), version integer NOT NULL, updated_at timestamptz NOT NULL);
+CREATE TABLE IF NOT EXISTS stock_movements (id uuid PRIMARY KEY, order_id uuid UNIQUE, product_id uuid NOT NULL REFERENCES stock(product_id), quantity integer NOT NULL CHECK (quantity > 0), kind varchar(10) NOT NULL CHECK (kind IN ('add','debit')), remaining_quantity integer NOT NULL, created_at timestamptz NOT NULL);
+CREATE TABLE IF NOT EXISTS outbox_events (event_id uuid PRIMARY KEY, event_type varchar(80) NOT NULL, aggregate_id uuid NOT NULL, payload jsonb NOT NULL, occurred_at timestamptz NOT NULL, version integer NOT NULL, published_at timestamptz, attempts integer NOT NULL DEFAULT 0, last_error text);
+CREATE INDEX IF NOT EXISTS inventory_outbox_pending ON outbox_events (occurred_at) WHERE published_at IS NULL;

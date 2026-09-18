@@ -1,4 +1,4 @@
-// Run inside inventory-service: docker compose ... exec -T inventory-service node < scripts/verify-inventory-flow.cjs
+// Run via npm run verify:flow:inventory (isolated Node verification container).
 const assert = require('node:assert/strict');
 const { randomUUID } = require('node:crypto');
 const { JwtService } = require('@nestjs/jwt');
@@ -13,7 +13,7 @@ async function main() {
   const productId = randomUUID();
   async function api(path, body, internal = false, authorized = true) {
     const response = await fetch(
-      (internal ? 'http://localhost:3000' : 'http://nginx-gateway') + path,
+      (internal ? (process.env.INVENTORY_INTERNAL_URL ?? 'http://inventory-service:3000') : 'http://nginx-gateway') + path,
       {
         method: body ? 'POST' : 'GET',
         headers: {

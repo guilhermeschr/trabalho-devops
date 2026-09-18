@@ -6,6 +6,7 @@ Sistema de delivery com microsserviços. Produtos e Estoque estão implementados
 
 - Node.js 24 ou superior
 - npm 11 ou superior
+- Java 21 e Maven 3.9+ para executar/testar Estoque fora do Docker
 - Docker com Docker Compose
 
 ## Execução do serviço de Produtos
@@ -88,7 +89,7 @@ A implementação contém Produtos e Estoque, cada um com dois bancos CQRS,
 RabbitMQ e o gateway Nginx. Auth e Pedidos serão adicionados posteriormente.
 
 
-## Estoque
+## Estoque — Java e Spring Boot
 
 - `POST /api/v1/inventory`: `{ "productId": "<uuid>", "quantity": 20 }`.
 - `GET /api/v1/inventory/:productId`: consulta o saldo projetado.
@@ -105,8 +106,15 @@ Swagger de Estoque: http://localhost:8080/inventory/docs.
 npm run test:inventory
 npm run build:inventory
 npm run verify:swagger:inventory
-docker compose --env-file .env -f infra/docker/docker-compose.yml exec -T inventory-service node < scripts/verify-inventory-flow.cjs
+npm run verify:flow:inventory
 ~~~
 
-O roteiro cria dados de teste. A especificação v1.9 descreve erros,
+O roteiro cria dados de teste. A especificação v2.0 descreve erros,
 concorrência, consistência eventual e variáveis de ambiente de Estoque.
+
+
+O código Java está em `services/inventory/src/main/java/br/com/delivery/inventory`.
+Comece por `domain/StockRules.java` e `application/usecase/AddStockUseCase.java`.
+O [guia do serviço](services/inventory/README.md) explica as pastas e as classes.
+Produtos permanece em NestJS. O serviço Java mantém os bancos e dados da
+versão anterior; não é necessário excluir volumes para migrar.

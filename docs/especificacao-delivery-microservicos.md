@@ -1,7 +1,7 @@
 # Especificação do Sistema de Delivery com Microsserviços
 
 **Status:** especificação de referência para implementação
-**Versão:** 1.9
+**Versão:** 2.0
 **Última atualização:** 2026-09-18
 **Idioma:** português
 **Objetivo:** orientar a construção, execução e validação de um sistema simples de delivery com foco em DevOps.
@@ -10,6 +10,7 @@
 
 | Versão | Data | Alteração |
 |---|---|---|
+| 2.0 | 2026-09-18 | Migrado somente Estoque para Java 21 e Spring Boot; Spring JDBC, Flyway, JUnit/JaCoCo; preservados contratos HTTP, eventos e dados existentes |
 | 1.9 | 2026-09-18 | Implementado Estoque com CQRS, débito idempotente concorrente, projeção versionada, Outbox, Swagger e infraestrutura; normalizado nome Compose para delivery |
 | 1.8 | 2026-09-17 | Adicionados os filtros opcionais por ID exato e nome parcial na consulta de produtos, com contrato Swagger e validação automatizada |
 | 1.7 | 2026-09-17 | Tornada obrigatória a recriação do container e a validação HTTP da interface `/docs` e do documento `/docs-json` |
@@ -33,7 +34,7 @@ O trabalho deverá demonstrar:
 - CQRS nos serviços de Produtos e Estoque.
 - Bancos de escrita e leitura separados para Produtos e Estoque.
 - RabbitMQ para atualização dos modelos de consulta.
-- Injeção de dependências com NestJS.
+- Injeção de dependências com NestJS em Produtos e Spring em Estoque.
 - Testes unitários com cobertura mínima de 50% em cada microsserviço.
 - Execução local reproduzível com Docker Compose.
 
@@ -56,15 +57,15 @@ Não fazem parte desta versão:
 
 | Categoria | Tecnologia |
 |---|---|
-| Linguagem | TypeScript |
-| Runtime | Node.js |
-| Framework | NestJS |
+| Linguagem | TypeScript (Produtos); Java 21 (Estoque) |
+| Runtime | Node.js (Produtos); JVM (Estoque) |
+| Framework | NestJS (Produtos); Spring Boot 3.5.16 (Estoque) |
 | Persistência | PostgreSQL |
-| ORM | TypeORM |
+| Persistência e migrações | TypeORM (Produtos); Spring JDBC e Flyway (Estoque) |
 | Mensageria | RabbitMQ |
 | Gateway | Nginx |
 | Empacotamento | Docker e Docker Compose |
-| Testes | Jest e Supertest |
+| Testes | Jest e Supertest (Produtos); JUnit 5, Mockito, MockMvc, Testcontainers e JaCoCo (Estoque) |
 | Documentação de API | Swagger/OpenAPI |
 
 ### 2.2 Componentes
@@ -687,17 +688,17 @@ Responsabilidades:
 - "presentation": controllers, DTOs e filtros HTTP.
 - "application": casos de uso e portas/interfaces.
 - "domain": entidades e regras de negócio.
-- "infrastructure": TypeORM, RabbitMQ, clientes REST e adaptadores.
+- "infrastructure": TypeORM ou Spring JDBC, RabbitMQ, clientes REST e adaptadores.
 
 Regras obrigatórias:
 
 - Controllers dependem somente de casos de uso.
 - Casos de uso dependem de interfaces, não de implementações concretas.
-- Repositórios TypeORM devem ser registrados com tokens.
+- Em Produtos, repositórios TypeORM são registrados com tokens; em Estoque, implementações das interfaces são beans Spring injetados pelo construtor.
 - Bancos de leitura e escrita devem possuir conexões nomeadas.
 - Clientes REST devem ser providers injetáveis.
 - Publicadores e consumidores RabbitMQ devem ser providers injetáveis.
-- Configurações devem ser obtidas pelo "ConfigService".
+- Configurações são obtidas pelo ConfigService (NestJS) ou pelo Environment/propriedades do Spring, sempre a partir do ambiente.
 - Não usar instanciação manual de dependências dentro de controllers ou casos de uso.
 - Não usar singletons globais para repositórios, clientes HTTP ou conexões.
 
@@ -884,7 +885,7 @@ Cada microsserviço deverá possuir testes unitários independentes.
 
 ### 12.1 Meta de cobertura
 
-A configuração do Jest deverá impedir cobertura inferior a 50% em cada serviço:
+Em Produtos, a configuração do Jest deverá impedir cobertura inferior a 50%:
 
 ~~~typescript
 coverageThreshold: {
@@ -896,6 +897,8 @@ coverageThreshold: {
   }
 }
 ~~~
+
+Em Estoque, `mvn verify` executa JUnit/Mockito e testes de integração com PostgreSQL real via Testcontainers. JaCoCo exige pelo menos 50% em BRANCH, METHOD, LINE e INSTRUCTION; a última mede instruções de bytecode, não statements da linguagem. O build falha quando o limite não é atendido ou quando Docker não está disponível para os testes de integração.
 
 ### 12.2 Casos obrigatórios
 
@@ -1060,11 +1063,14 @@ alterar os limites de dados, rotas internas e contratos definidos nesta
 especificação.
 
 
-## 17. Implementação de Estoque (versão 1.9)
+## 17. Implementação de Estoque (versão 2.0)
 
-`services/inventory` é um workspace NestJS independente. Mantém controllers,
-casos de uso, interfaces e adaptadores TypeORM com conexões `inventoryWrite`
-e `inventoryRead`. Migrações são executadas na inicialização, sem synchronize.
+`services/inventory` é uma aplicação Java 21 / Spring Boot independente,
+construída com Maven. Produtos continua em NestJS. Controllers, casos de uso,
+interfaces e adaptadores Spring JDBC são injetados pelo construtor.
+`StockRules` concentra as regras de quantidade, saldo e repetição de pedidos.
+Há dois DataSources e dois gerenciadores de transação, `writeTransactionManager`
+e `readTransactionManager`. Migrações Flyway são executadas antes dos repositórios.
 
 ### Contratos e regras
 
@@ -1097,12 +1103,12 @@ saldo não negativo no PostgreSQL. Tentativas insuficientes não reservam o pedi
 Cada alteração incrementa a versão do agregado e gera `inventory.stock_added`
 ou `inventory.stock_debited`, com payload `{productId, availableQuantity, updatedAt}`.
 O worker mantém eventos pendentes até confirmação do RabbitMQ.
-Conexões encerradas são recriadas; o consumidor tenta reconectar a cada segundo. A fila durável
+Spring AMQP administra a recuperação de conexões; o publicador aguarda confirmação por até cinco segundos. Publicações sem fila de destino também permanecem pendentes. A fila durável
 `inventory.read.projector` recebe `inventory.*` no exchange `delivery.events`.
 A projeção e o registro de `eventId` processado são transacionais. Eventos
 repetidos são ignorados; versões antigas não sobrescrevem versões novas.
-O consumidor confirma somente após commit; falhas de persistência são reenviadas.
-Mensagens malformadas são rejeitadas sem reenvio, com aviso de log.
+O listener Spring AMQP confirma automaticamente somente após a projeção transacional retornar (commit); falhas de persistência são reenviadas.
+Mensagens malformadas são rejeitadas sem reenvio, pelo tratamento de erros do listener.
 
 ### Infraestrutura e documentação
 
@@ -1111,7 +1117,7 @@ O Compose `delivery` adiciona Estoque e dois PostgreSQL privados com volumes
 O Nginx encaminha `/api/v1/inventory` e bloqueia `/internal/`.
 Swagger interno usa `/docs` e `/docs-json`; pelo gateway, fica em
 `/inventory/docs` e `/inventory/docs-json`. Só é habilitado com
-`SWAGGER_ENABLED=true` fora de produção. Produtos mantém seus endpoints anteriores.
+`SWAGGER_ENABLED=true` fora de produção. `NODE_ENV=production` e os perfis Spring `prod`/`production` desabilitam Swagger mesmo com a flag ativa. Os recursos estáticos locais são encaminhados por `/inventory/swagger-ui/`. Produtos mantém seus endpoints anteriores.
 
 Configuração: `INVENTORY_PORT`, `INVENTORY_WRITE_DB_{HOST,PORT,NAME,USER,PASSWORD}`,
 `INVENTORY_READ_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `RABBITMQ_INVENTORY_QUEUE`,
@@ -1128,13 +1134,51 @@ npm run build:inventory
 npm run infra:up
 npm run verify:swagger:products
 npm run verify:swagger:inventory
-docker compose --env-file .env -f infra/docker/docker-compose.yml exec -T inventory-service node < scripts/verify-inventory-flow.cjs
+npm run verify:flow:inventory
 ~~~
 
 O roteiro de fluxo cria dados de teste com UUIDs novos: verifica JWT, token
 interno, bloqueio pelo gateway, adição, projeção, dez débitos simultâneos do
 mesmo pedido, débitos concorrentes com estoque limitado, movimentações, Outbox
 e evento antigo. Execute-o em ambiente de desenvolvimento/teste.
-A suíte própria exige ao menos 50% nas quatro métricas de cobertura.
+A suíte própria exige ao menos 50% nas quatro métricas JaCoCo definidas na seção 12.1.
 Auth e Pedidos ainda não estão implementados; o fluxo completo da seção 12.3
 permanece para a integração futura desses serviços.
+
+
+### 17.1 Preservação dos dados da versão NestJS
+
+Os nomes, colunas e restrições das tabelas permanecem compatíveis com a v1.9.
+Flyway usa baseline 0 para bancos existentes e migrações V1 idempotentes que
+criam apenas tabelas/índices ausentes. A antiga tabela `migrations` do TypeORM
+é preservada. Não há limpeza de volumes nem cópia entre bancos.
+
+Antes de atualizar um ambiente com dados importantes, faça backup dos dois
+bancos. Recrie apenas a aplicação com a imagem Java e mantenha os volumes.
+Não use `docker compose down --volumes` nesse ambiente. Os testes automatizados
+preparam o esquema antigo com saldo, projeção e débito e confirmam que o novo
+serviço mantém o saldo e reconhece o pedido já processado.
+
+### 17.2 Build e validação
+
+- JDK 21 e Maven 3.9+ para execução fora do Docker.
+- `mvn -f services/inventory/pom.xml test`: testes unitários, sem Docker.
+- `mvn -f services/inventory/pom.xml verify`: unitários + integração PostgreSQL
+  com Testcontainers + cobertura JaCoCo. Exige Docker; os testes não são omitidos
+  silenciosamente quando ele está indisponível.
+- `mvn -f services/inventory/pom.xml -DskipTests package`: gera o JAR executável.
+- Relatório: `services/inventory/target/site/jacoco/index.html`.
+- O Dockerfile compila com Maven/JDK 21 e executa somente Java no estágio final.
+- O health check usa `wget` em `/health`; a porta interna continua 3000.
+- `npm run verify:flow:inventory` usa o container auxiliar `inventory-check`,
+  ativado apenas pelo perfil Compose `tools`. Ele contém Node para executar o
+  roteiro já existente; o serviço de Estoque não depende de Node.
+- Os únicos workspaces npm são os serviços TypeScript, atualmente Produtos.
+
+### 17.3 Mapa das classes para estudo
+
+Veja `services/inventory/README.md`: o fluxo principal é
+`InventoryController → AddStockUseCase → StockWriteRepository → StockWriteJdbcRepository`.
+`StockRules` contém as regras, executadas dentro da transação pelo adaptador
+quando dependem do saldo. `OutboxPublisherWorker` publica eventos e
+`StockReadProjectorConsumer` atualiza o banco de leitura.

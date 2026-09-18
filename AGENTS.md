@@ -73,7 +73,7 @@ Quando código e especificação descrevem o mesmo comportamento, prefira coloc�
 - JWT autentica chamadas externas.
 - `X-Internal-Token` protege chamadas internas entre serviços.
 - Controllers dependem de casos de uso, e casos de uso dependem de interfaces.
-- Dependências devem ser registradas e recebidas por injeção do NestJS.
+- Dependências devem ser registradas e recebidas por injeção do NestJS em Produtos e do Spring em Estoque.
 - Não instancie manualmente repositórios, clientes HTTP, publishers ou conexões dentro de controllers e casos de uso.
 - Não acesse diretamente o banco de outro microsserviço.
 
@@ -83,7 +83,7 @@ Toda rota criada ou alterada deverá ser documentada corretamente no Swagger.
 
 Regras obrigatórias:
 
-- Controllers devem declarar tags e operações com decorators Swagger.
+- Controllers devem declarar tags e operações com decorators Swagger (NestJS) ou annotations OpenAPI (Spring).
 - Parâmetros de rota, corpos, headers e autenticação devem aparecer no
   documento OpenAPI.
 - Códigos HTTP, schemas, exemplos e mensagens documentados devem refletir o
@@ -94,7 +94,7 @@ Regras obrigatórias:
   pelo Nginx.
 - Toda alteração de rota deve atualizar o teste automatizado do contrato
   Swagger.
-- Toda nova rota deve ser verificada com `npm run verify:swagger:products`.
+- Toda nova rota deve ser verificada com `npm run verify:swagger:products` ou `npm run verify:swagger:inventory`, conforme o serviço.
 - Swagger deve permanecer desabilitado em produção.
 - Antes de considerar o Swagger disponível, confirme a configuração efetiva no
   container de Produtos com:
@@ -119,6 +119,8 @@ A cobertura mínima exigida por microsserviço é de 50% para:
 - Functions.
 - Lines.
 - Statements.
+
+Em Estoque Java, JaCoCo verifica branches, methods, lines e instructions (equivalentes operacionais às métricas acima; instructions não é contagem de statements Java). Execute `mvn -f services/inventory/pom.xml verify` com Java 21 e Docker para incluir os testes de integração.
 
 Toda alteração de comportamento deve incluir ou atualizar testes para:
 
