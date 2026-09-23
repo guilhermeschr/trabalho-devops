@@ -1,8 +1,8 @@
 # Especificação do Sistema de Delivery com Microsserviços
 
 **Status:** especificação de referência para implementação
-**Versão:** 2.0
-**Última atualização:** 2026-09-18
+**Versão:** 2.10
+**Última atualização:** 2026-09-23
 **Idioma:** português
 **Objetivo:** orientar a construção, execução e validação de um sistema simples de delivery com foco em DevOps.
 
@@ -10,6 +10,16 @@
 
 | Versão | Data | Alteração |
 |---|---|---|
+| 2.10 | 2026-09-23 | Adicionada a coleção Bruno `docs/bruno/` (YAML OpenCollection) com asserção do HTTP esperado por requisição, executável pelo Runner ou por `npx @usebruno/cli run` (seção 13) |
+| 2.9 | 2026-09-23 | Adicionados `docs/arquitetura.md` (visão geral resumida), `docs/roteiro-apresentacao.md` (roteiro de testes manuais), a coleção Insomnia `docs/insomnia-delivery.json` e o script `scripts/demo-manual.sh` (seção 13); sem alteração de contratos |
+| 2.8 | 2026-09-23 | Fechamento da especificação: checklist da seção 14 marcado conforme as suítes, a cobertura, os roteiros e o Swagger executados; seção 8 alinhada à organização real (`common/`, `health/`, `runtime/`); seções 10, 15, 16 e 17 atualizadas para os quatro serviços implementados |
+| 2.7 | 2026-09-23 | RabbitMQ passa a ter um usuário por serviço (`products` e `inventory`), com permissões restritas ao exchange `delivery.events` e às filas do próprio serviço, importados de `infra/rabbitmq/definitions.json` a cada inicialização |
+| 2.6 | 2026-09-23 | Nginx repassa `X-Request-Id` válido do cliente e gera um quando ausente ou inválido, descarta `X-Internal-Token` externo, aceita somente `PUT` em `/api/v1/products/:id` e retorna erros JSON (404 `ROUTE_NOT_FOUND`, 405 `METHOD_NOT_ALLOWED`, 503 `SERVICE_UNAVAILABLE`); `verify:flow` valida esse comportamento |
+| 2.5 | 2026-09-23 | Adicionado o roteiro de validação ponta a ponta `npm run verify:flow` (container `flow-check`, perfil `tools`), executado pelo gateway com o JWT real do login e polling das projeções |
+| 2.4 | 2026-09-23 | Implementado Pedidos em NestJS com criação, consulta e conclusão, clientes REST de Produtos e Estoque com timeout, banco `orders-db`, Swagger em `/orders/docs`, validação `verify:swagger:orders` e cobertura mínima; definidos `PRODUCT_INACTIVE` (409), o mapeamento de erros das dependências e a retentativa de gravação após o débito |
+| 2.3 | 2026-09-23 | Removido o bypass temporário `AUTH_ENABLED` de Produtos (antiga seção 9.1); JWT obrigatório em todas as rotas públicas, em qualquer ambiente |
+| 2.2 | 2026-09-23 | Implementado Auth em NestJS com cadastro, login JWT, banco `auth-db`, Swagger em `/auth/docs`, validação `verify:swagger:auth` e cobertura mínima |
+| 2.1 | 2026-09-23 | Definida a stack NestJS/TypeORM/Jest para Auth e Pedidos, com injeção de dependências por tokens; variáveis de ambiente alinhadas ao padrão real por serviço |
 | 2.0 | 2026-09-18 | Migrado somente Estoque para Java 21 e Spring Boot; Spring JDBC, Flyway, JUnit/JaCoCo; preservados contratos HTTP, eventos e dados existentes |
 | 1.9 | 2026-09-18 | Implementado Estoque com CQRS, débito idempotente concorrente, projeção versionada, Outbox, Swagger e infraestrutura; normalizado nome Compose para delivery |
 | 1.8 | 2026-09-17 | Adicionados os filtros opcionais por ID exato e nome parcial na consulta de produtos, com contrato Swagger e validação automatizada |
@@ -34,7 +44,7 @@ O trabalho deverá demonstrar:
 - CQRS nos serviços de Produtos e Estoque.
 - Bancos de escrita e leitura separados para Produtos e Estoque.
 - RabbitMQ para atualização dos modelos de consulta.
-- Injeção de dependências com NestJS em Produtos e Spring em Estoque.
+- Injeção de dependências com NestJS em Produtos, Auth e Pedidos e com Spring em Estoque.
 - Testes unitários com cobertura mínima de 50% em cada microsserviço.
 - Execução local reproduzível com Docker Compose.
 
@@ -57,16 +67,23 @@ Não fazem parte desta versão:
 
 | Categoria | Tecnologia |
 |---|---|
-| Linguagem | TypeScript (Produtos); Java 21 (Estoque) |
-| Runtime | Node.js (Produtos); JVM (Estoque) |
-| Framework | NestJS (Produtos); Spring Boot 3.5.16 (Estoque) |
+| Linguagem | TypeScript (Produtos, Auth e Pedidos); Java 21 (Estoque) |
+| Runtime | Node.js (Produtos, Auth e Pedidos); JVM (Estoque) |
+| Framework | NestJS (Produtos, Auth e Pedidos); Spring Boot 3.5.16 (Estoque) |
 | Persistência | PostgreSQL |
-| Persistência e migrações | TypeORM (Produtos); Spring JDBC e Flyway (Estoque) |
+| Persistência e migrações | TypeORM com migrações executadas na inicialização (Produtos, Auth e Pedidos); Spring JDBC e Flyway (Estoque) |
+| Hash de senha | bcryptjs, implementação bcrypt em JavaScript puro, sem compilação nativa (Auth) |
+| Cliente REST | `fetch` nativo do Node.js com `AbortSignal.timeout` (Pedidos) |
 | Mensageria | RabbitMQ |
 | Gateway | Nginx |
 | Empacotamento | Docker e Docker Compose |
-| Testes | Jest e Supertest (Produtos); JUnit 5, Mockito, MockMvc, Testcontainers e JaCoCo (Estoque) |
+| Testes | Jest e Supertest (Produtos, Auth e Pedidos); JUnit 5, Mockito, MockMvc, Testcontainers e JaCoCo (Estoque) |
 | Documentação de API | Swagger/OpenAPI |
+
+Cada serviço TypeScript é um workspace npm próprio na raiz do repositório
+(`services/products`, `services/auth` e `services/orders`), com `package.json`,
+configuração Jest e Dockerfile independentes. Estoque é construído com Maven e
+não participa dos workspaces npm.
 
 ### 2.2 Componentes
 
@@ -174,8 +191,12 @@ Regras:
 - O e-mail deverá ser único e normalizado para letras minúsculas.
 - A senha nunca poderá ser retornada.
 - A senha deverá ser armazenada com hash usando bcrypt ou Argon2.
-- Senha com formato inválido deverá retornar 400.
-- E-mail já cadastrado deverá retornar 409.
+- Senha com formato inválido deverá retornar 400. A senha deverá ser texto com
+  8 a 72 caracteres; o limite superior corresponde ao máximo processado pelo
+  bcrypt.
+- Nome deverá ter de 1 a 120 caracteres após remover espaços nas extremidades.
+- Campos desconhecidos no corpo deverão retornar 400.
+- E-mail já cadastrado deverá retornar 409 com código `EMAIL_ALREADY_REGISTERED`.
 
 ### 3.2 Login
 
@@ -205,7 +226,9 @@ POST /api/v1/auth/login
 }
 ~~~
 
-Credenciais inválidas deverão retornar 401.
+Credenciais inválidas deverão retornar 401 com código `INVALID_CREDENTIALS`,
+sem diferenciar e-mail inexistente de senha incorreta. O e-mail do login é
+normalizado para minúsculas antes da consulta.
 
 ### 3.3 Criar produto
 
@@ -384,6 +407,23 @@ POST /api/v1/orders
 
 O "userId" deverá ser obtido do campo "sub" do JWT, nunca do corpo da requisição.
 
+Regras:
+
+- `productId` deverá ser UUID e `quantity` um inteiro entre 1 e 2147483647.
+  Campos desconhecidos (inclusive `userId`) retornam 400 (`VALIDATION_ERROR`).
+- `unitPrice` é o preço retornado por Produtos no momento da criação e
+  `total = unitPrice × quantity`, calculado em centavos inteiros.
+
+| Situação | HTTP | Código |
+|---|---|---|
+| JWT ausente, inválido ou sem `sub` | 401 | `UNAUTHORIZED` |
+| Corpo inválido | 400 | `VALIDATION_ERROR` |
+| Produto inexistente | 404 | `PRODUCT_NOT_FOUND` |
+| Produto inativo | 409 | `PRODUCT_INACTIVE` |
+| Estoque insuficiente | 409 | `INSUFFICIENT_STOCK` |
+| Produtos ou Estoque indisponível ou sem resposta no timeout | 503 | `DEPENDENCY_UNAVAILABLE` |
+| Resposta inesperada de uma dependência ou falha ao gravar | 500 | `INTERNAL_SERVER_ERROR` |
+
 ### 3.9 Consultar pedido
 
 #### Requisição
@@ -406,7 +446,7 @@ GET /api/v1/orders/:id
 }
 ~~~
 
-O usuário somente poderá consultar os próprios pedidos. Pedido inexistente deverá retornar 404 e pedido de outro usuário deverá retornar 403.
+O usuário somente poderá consultar os próprios pedidos. Pedido inexistente deverá retornar 404 (`ORDER_NOT_FOUND`) e pedido de outro usuário deverá retornar 403 (`ORDER_FORBIDDEN`). Um `:id` que não seja UUID retorna 400. A existência é verificada antes da propriedade.
 
 ### 3.10 Concluir pedido
 
@@ -436,10 +476,12 @@ Regras:
 
 - Somente o proprietário poderá concluir o pedido.
 - A transição válida será "CREATED -> COMPLETED".
-- Pedido inexistente deverá retornar 404.
-- Usuário diferente do proprietário deverá receber 403.
-- Pedido em estado inválido deverá retornar 409.
+- Pedido inexistente deverá retornar 404 (`ORDER_NOT_FOUND`).
+- Usuário diferente do proprietário deverá receber 403 (`ORDER_FORBIDDEN`).
+- Pedido em estado inválido deverá retornar 409 (`INVALID_ORDER_STATUS`).
 - Pedido já concluído deverá retornar 200 com status "COMPLETED", sem duplicar alterações.
+- A gravação usa atualização condicional (`status = 'CREATED'`); conclusões
+  simultâneas alteram o pedido uma única vez e todas retornam 200.
 
 ## 4. Rotas internas
 
@@ -565,6 +607,17 @@ Códigos HTTP obrigatórios:
 
 O fluxo não deverá acessar bancos de outros serviços diretamente.
 
+Produto inativo interrompe o fluxo no passo 6 com 409 `PRODUCT_INACTIVE`, sem
+debitar estoque. O `orderId` é gerado pelo "orders-service" antes do passo 7 e
+enviado no débito, que é idempotente por `orderId` no Estoque.
+
+Decisão de consistência (débito → gravação): o débito acontece antes da
+gravação do pedido. Se a gravação falhar, o serviço repete o INSERT uma vez com
+o mesmo `orderId`. Persistindo a falha, registra em log `orderId` e `traceId`
+para reconciliação manual e retorna 500. Nesta versão não há compensação
+automática: Estoque não possui rota de estorno e uma nova requisição do cliente
+gera outro `orderId`.
+
 ### 6.2 Conclusão de pedido
 
 1. O cliente chama POST /api/v1/orders/:id/complete.
@@ -581,6 +634,14 @@ O fluxo não deverá acessar bancos de outros serviços diretamente.
 - O cliente REST deverá utilizar timeout configurável.
 - O erro deverá registrar "traceId" e o serviço de origem.
 - Nenhum erro interno deverá expor stack trace ou credenciais.
+- Em Pedidos, timeout (`ORDERS_HTTP_TIMEOUT_MS`), falha de conexão e respostas
+  5xx da dependência retornam 503 `DEPENDENCY_UNAVAILABLE`, com a mensagem
+  "Serviço de Produtos indisponível" ou "Serviço de Estoque indisponível".
+- Respostas que Pedidos não trata (por exemplo, 403 por token interno incorreto
+  ou 409 `IDEMPOTENCY_CONFLICT`) indicam erro de configuração e retornam 500
+  genérico, registrado em log com serviço, status e `traceId`.
+- Pedidos repassa `X-Request-Id` às chamadas internas; quando ausente, gera um
+  UUID e o devolve no cabeçalho da resposta.
 
 ## 7. CQRS e RabbitMQ
 
@@ -650,6 +711,19 @@ Envelope padrão:
 - Reprocessar mensagens não confirmadas.
 - Confirmar a mensagem somente após atualizar o banco de leitura.
 - Registrar "eventId" processado para garantir idempotência.
+- Cada serviço conecta com usuário próprio. As permissões de configure, write
+  e read ficam restritas ao exchange e às filas do serviço:
+
+| Usuário | Serviço | Permissões (vhost `/`) |
+|---|---|---|
+| `products` | "products-service" | `^(delivery\.events\|products\..*)$` |
+| `inventory` | "inventory-service" e "inventory-check" | `^(delivery\.events\|inventory\..*)$` |
+
+Usuários, vhost e permissões ficam em `infra/rabbitmq/definitions.json`
+(senhas em hash SHA-256 do RabbitMQ) e são importados a cada inicialização por
+`infra/rabbitmq/20-definitions.conf`. Isso também vale para um volume
+`rabbitmq-data` já existente. Não há usuário padrão nem usuário administrador,
+e a interface de gerenciamento não é publicada.
 
 ### 7.5 Outbox transacional
 
@@ -666,22 +740,33 @@ Se RabbitMQ estiver indisponível, o evento deverá permanecer pendente para nov
 
 ## 8. Injeção de dependências e organização de código
 
-Cada microsserviço deverá seguir uma organização semelhante:
+Os serviços NestJS (Produtos, Auth e Pedidos) seguem esta organização:
 
 ~~~text
 src/
+  main.ts
+  app.module.ts
   modules/
     <modulo>/
       domain/
       application/
-      infrastructure/
+      infrastructure/   # persistência, auth (guard JWT), http, messaging
       presentation/
-  shared/
-    config/
-    http/
-    messaging/
-    auth/
+      <modulo>.module.ts
+  common/             # filtro de erros da seção 5, middleware, Swagger
+    swagger/
+  health/             # GET /health
+  runtime/            # testes da aplicação montada (Swagger, adaptador HTTP, gateway)
 ~~~
+
+Não existe pasta `shared/`: o código transversal de cada serviço fica em
+`common/`, e a configuração vem diretamente do ConfigService. Os adaptadores de
+autenticação, mensageria e HTTP ficam em `infrastructure/` do módulo que os
+utiliza. Nenhum código é compartilhado entre serviços.
+
+Estoque (Java) usa os mesmos papéis como pacotes em
+`br.com.delivery.inventory`: `domain`, `application`, `presentation` e
+`infrastructure` (`auth`, `config`, `messaging`, `persistence`).
 
 Responsabilidades:
 
@@ -694,8 +779,10 @@ Regras obrigatórias:
 
 - Controllers dependem somente de casos de uso.
 - Casos de uso dependem de interfaces, não de implementações concretas.
-- Em Produtos, repositórios TypeORM são registrados com tokens; em Estoque, implementações das interfaces são beans Spring injetados pelo construtor.
-- Bancos de leitura e escrita devem possuir conexões nomeadas.
+- Em Produtos, Auth e Pedidos, portas são declaradas com tokens `Symbol` e registradas no módulo NestJS com providers `useClass`; em Estoque, implementações das interfaces são beans Spring injetados pelo construtor.
+- Em Auth, o repositório de usuários (`USER_REPOSITORY`), o gerador de hash de senha (`PASSWORD_HASHER`) e o emissor de JWT (`TOKEN_ISSUER`) são portas injetadas nos casos de uso.
+- Em Pedidos, o repositório de pedidos (`ORDER_REPOSITORY`) e os clientes REST de Produtos (`PRODUCTS_CLIENT`) e Estoque (`INVENTORY_CLIENT`) são portas injetadas; URLs, token interno e timeout dos clientes vêm do ConfigService.
+- Bancos de leitura e escrita devem possuir conexões nomeadas; Auth e Pedidos usam uma conexão nomeada para o próprio banco.
 - Clientes REST devem ser providers injetáveis.
 - Publicadores e consumidores RabbitMQ devem ser providers injetáveis.
 - Configurações são obtidas pelo ConfigService (NestJS) ou pelo Environment/propriedades do Spring, sempre a partir do ambiente.
@@ -721,24 +808,11 @@ O caso de uso deverá receber essa interface por injeção, permitindo substitu�
 - Os microsserviços deverão validar o JWT localmente.
 - A chave JWT deverá vir de variável de ambiente.
 - Senhas deverão ser armazenadas somente como hash.
-- Rotas internas deverão exigir "X-Internal-Token".
+- Rotas internas deverão sempre exigir "X-Internal-Token".
 - O token interno deverá ser diferente do segredo utilizado para JWT.
 - Tokens, senhas e secrets nunca poderão aparecer nos logs.
-
-### 9.1 Exceção temporária da implementação inicial
-
-Enquanto o microsserviço Auth não estiver implementado, o serviço de Produtos
-deverá aceitar a variável "AUTH_ENABLED=false" exclusivamente no Compose local
-inicial. Nesse modo, as rotas externas de Produtos ficam sem a validação JWT
-para permitir a demonstração da fatia vertical.
-
-Quando "AUTH_ENABLED=true" (valor obrigatório para qualquer ambiente
-compartilhado, homologação ou produção), o serviço deverá exigir um JWT válido
-assinado com "JWT_SECRET". O bypass não poderá ser usado para contornar a
-autenticação em produção.
-
-A rota "/internal/v1/products/:id" sempre deverá exigir "X-Internal-Token",
-independentemente de "AUTH_ENABLED".
+- Não há bypass de JWT em nenhum ambiente: rotas externas protegidas sempre
+  exigem um JWT válido assinado com "JWT_SECRET".
 
 ## 10. Docker Compose e configuração
 
@@ -746,29 +820,23 @@ Na implementação atual, o arquivo
 `infra/docker/docker-compose.yml` contém:
 
 - "nginx-gateway"
-- "products-service"
-- "products-write-db"
-- "products-read-db"
-- "inventory-service"
-- "inventory-write-db"
-- "inventory-read-db"
-- "rabbitmq"
-
-Auth, Pedidos e os demais bancos serão adicionados em etapas
-posteriores. Na versão completa do sistema, o Compose deverá conter:
-
-- "nginx-gateway"
 - "auth-service"
-- "products-service"
-- "inventory-service"
-- "orders-service"
-- "rabbitmq"
 - "auth-db"
-- "orders-db"
+- "products-service"
 - "products-write-db"
 - "products-read-db"
+- "inventory-service"
 - "inventory-write-db"
 - "inventory-read-db"
+- "orders-service"
+- "orders-db"
+- "rabbitmq"
+
+Esse é o conjunto completo de containers do sistema. Os containers auxiliares
+"inventory-check" (`npm run verify:flow:inventory`) e "flow-check"
+(`npm run verify:flow`) só são iniciados pelo perfil `tools`. O RabbitMQ monta
+`infra/rabbitmq/` (seção 7.4) e o gateway monta `infra/nginx/nginx.conf`
+(seção 11).
 
 Requisitos:
 
@@ -782,31 +850,47 @@ Requisitos:
   Nginx, por padrão 8080.
 - O serviço de Produtos deverá executar as migrações TypeORM de escrita e
   leitura antes de atender as rotas.
+- O serviço de Auth deverá executar a migração TypeORM de "auth-db" antes de
+  atender as rotas.
+- O serviço de Pedidos deverá executar a migração TypeORM de "orders-db" antes
+  de atender as rotas e aguardar "orders-db", "products-service" e
+  "inventory-service" saudáveis.
+- Todos os Dockerfiles que executam `npm ci` na raiz deverão copiar o
+  `package.json` de todos os workspaces npm declarados.
 
-Variáveis de ambiente mínimas:
+Variáveis de ambiente por serviço. Cada microsserviço lê somente as
+variáveis do próprio prefixo e as comuns de que precisa; a porta interna de
+todos os containers é 3000.
 
-~~~text
-NODE_ENV
-PORT
-DATABASE_HOST
-DATABASE_PORT
-DATABASE_NAME
-DATABASE_USER
-DATABASE_PASSWORD
-READ_DATABASE_HOST
-READ_DATABASE_PORT
-READ_DATABASE_NAME
-READ_DATABASE_USER
-READ_DATABASE_PASSWORD
-RABBITMQ_URL
-SWAGGER_ENABLED
-JWT_SECRET
-JWT_EXPIRES_IN
-INTERNAL_SERVICE_TOKEN
-PRODUCTS_SERVICE_URL
-INVENTORY_SERVICE_URL
-ORDERS_SERVICE_URL
-~~~
+| Escopo | Variáveis |
+|---|---|
+| Comuns | `NODE_ENV`, `SWAGGER_ENABLED`, `JWT_SECRET`, `INTERNAL_SERVICE_TOKEN` |
+| Gateway | `PRODUCTS_PUBLIC_PORT` (porta HTTP publicada pelo Nginx, padrão 8080) |
+| RabbitMQ (Produtos e Estoque) | `RABBITMQ_URL`, `RABBITMQ_EXCHANGE` |
+| Produtos | `PRODUCTS_PORT`, `PRODUCTS_WRITE_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `PRODUCTS_READ_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `RABBITMQ_PRODUCTS_QUEUE` |
+| Estoque | `INVENTORY_PORT`, `INVENTORY_WRITE_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `INVENTORY_READ_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `RABBITMQ_INVENTORY_QUEUE` |
+| Auth | `AUTH_PORT`, `AUTH_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `JWT_EXPIRES_IN` |
+| Pedidos | `ORDERS_PORT`, `ORDERS_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `PRODUCTS_SERVICE_URL`, `INVENTORY_SERVICE_URL`, `ORDERS_HTTP_TIMEOUT_MS` |
+
+Regras:
+
+- `JWT_SECRET` é o mesmo em todos os serviços: Auth assina e os demais validam
+  localmente.
+- `JWT_EXPIRES_IN` é a validade do JWT em segundos (padrão `3600`). O sufixo
+  `s` é aceito por compatibilidade (`3600s`). O valor numérico é retornado em
+  `expiresIn` no login.
+- `INTERNAL_SERVICE_TOKEN` deverá ser diferente de `JWT_SECRET`.
+- `RABBITMQ_URL` contém o usuário do próprio serviço (seção 7.4):
+  `amqp://products:products@rabbitmq:5672` em Produtos e
+  `amqp://inventory:inventory@rabbitmq:5672` em Estoque. São credenciais de
+  desenvolvimento local.
+- `PRODUCTS_SERVICE_URL` e `INVENTORY_SERVICE_URL` usam os nomes dos containers
+  na rede Docker (`http://products-service:3000` e
+  `http://inventory-service:3000`).
+- `ORDERS_HTTP_TIMEOUT_MS` é o timeout, em milissegundos, de cada chamada REST
+  de Pedidos (padrão 3000). Ao ser excedido, a chamada é tratada como
+  dependência indisponível (503, seção 6.3).
+- Nenhum serviço chama Pedidos; por isso não existe `ORDERS_SERVICE_URL`.
 
 As credenciais deverão ser fornecidas por ".env.example" sem valores reais.
 
@@ -821,7 +905,9 @@ Na versão completa, o Nginx deverá encaminhar:
 /api/v1/orders      -> orders-service
 ~~~
 
-Na implementação inicial, "/api/v1/products" deverá ser encaminhado para
+Na implementação atual, "/api/v1/auth/" é encaminhado para "auth-service",
+"/api/v1/orders" e "/api/v1/orders/" para "orders-service" e
+"/api/v1/products" deverá ser encaminhado para
 "products-service" para as operações de criação e consulta. O caminho
 "/api/v1/products/:id" deverá ser encaminhado somente para a operação PUT de
 edição. Nenhuma rota "/internal/" deverá ser encaminhada.
@@ -834,6 +920,45 @@ O Nginx deverá:
 - Não encaminhar "/internal/".
 - Não publicar bancos ou RabbitMQ.
 - Retornar erro controlado quando o serviço de destino estiver indisponível.
+
+Implementação em `infra/nginx/nginx.conf`:
+
+- `X-Request-Id` do cliente é repassado quando casa com
+  `^[A-Za-z0-9._:-]{1,128}$`. Quando ausente ou fora desse formato, o gateway
+  usa `$request_id` (32 caracteres hexadecimais). O valor efetivo é enviado ao
+  serviço, devolvido no cabeçalho `X-Request-Id` da resposta (substituindo o
+  do serviço, que é o mesmo) e registrado no log de acesso.
+- `X-Internal-Token` recebido do cliente é descartado: rotas públicas não o
+  utilizam e rotas internas só são chamadas dentro da rede Docker.
+- `/api/v1/products/:id` aceita somente `PUT`; outros métodos retornam 405.
+- Erros gerados pelo próprio Nginx seguem o formato da seção 5. Erros
+  retornados pelos serviços (inclusive 503 `DEPENDENCY_UNAVAILABLE` de
+  Pedidos) são repassados sem alteração, pois não há `proxy_intercept_errors`.
+
+| Situação | HTTP | Código |
+|---|---|---|
+| Rota não mapeada ou prefixo `/internal/` | 404 | `ROUTE_NOT_FOUND` |
+| Método diferente de `PUT` em `/api/v1/products/:id` (com `Allow: PUT`) | 405 | `METHOD_NOT_ALLOWED` |
+| Serviço de destino fora do ar, recusando conexão ou sem resposta (502, 503 ou 504 do upstream) | 503 | `SERVICE_UNAVAILABLE` |
+
+Exemplo:
+
+~~~json
+{
+  "status": 503,
+  "code": "SERVICE_UNAVAILABLE",
+  "message": "Serviço temporariamente indisponível",
+  "path": "/api/v1/orders",
+  "traceId": "req-8f82c4",
+  "timestamp": "2026-09-16T15:35:00Z"
+}
+~~~
+
+No erro do gateway, `timestamp` é gerado pelo Nginx com precisão de segundos,
+e `path` fica vazio quando o caminho contém caracteres fora de
+`[A-Za-z0-9/._~:-]`. O Nginx resolve os nomes dos upstreams na inicialização;
+depois de recriar um serviço, reinicie o `nginx-gateway` caso o IP do container
+tenha mudado.
 
 ### 11.1 Documentação Swagger
 
@@ -879,13 +1004,36 @@ listagem pública deverá documentar os parâmetros de consulta opcionais `id` e
 As rotas internas deverão aparecer documentadas, mas continuarão bloqueadas
 pelo Nginx para clientes externos.
 
+O serviço de Auth segue as mesmas regras de habilitação. Internamente, usa
+`/docs` e `/docs-json`; pelo gateway, fica em `/auth/docs`, `/auth/docs/`
+(recursos da interface) e `/auth/docs-json`. O documento deverá conter
+exatamente as rotas abaixo, todas públicas (sem esquema de segurança):
+
+| Método | Rota | Tag |
+|---|---|---|
+| POST | /api/v1/auth/register | Autenticação |
+| POST | /api/v1/auth/login | Autenticação |
+| GET | /health | Infraestrutura |
+
+O serviço de Pedidos segue as mesmas regras de habilitação. Internamente, usa
+`/docs` e `/docs-json`; pelo gateway, fica em `/orders/docs`, `/orders/docs/`
+(recursos da interface) e `/orders/docs-json`. O documento deverá conter
+exatamente as rotas abaixo; as de Pedidos exigem o esquema Bearer `jwt`:
+
+| Método | Rota | Tag |
+|---|---|---|
+| POST | /api/v1/orders | Pedidos |
+| GET | /api/v1/orders/{id} | Pedidos |
+| POST | /api/v1/orders/{id}/complete | Pedidos |
+| GET | /health | Infraestrutura |
+
 ## 12. Testes
 
 Cada microsserviço deverá possuir testes unitários independentes.
 
 ### 12.1 Meta de cobertura
 
-Em Produtos, a configuração do Jest deverá impedir cobertura inferior a 50%:
+Em Produtos, Auth e Pedidos, a configuração do Jest de cada serviço deverá impedir cobertura inferior a 50%:
 
 ~~~typescript
 coverageThreshold: {
@@ -966,6 +1114,40 @@ Além dos testes unitários, deverá existir um roteiro de validação com Docke
 9. Conclusão do pedido.
 10. Repetição da conclusão para validar idempotência.
 
+O roteiro é executado por:
+
+~~~bash
+npm run verify:flow
+~~~
+
+O comando roda `scripts/verify-flow.mjs` no container `flow-check` (perfil
+`tools`, imagem `node:24-alpine`, sem dependências além do Node), que depende
+do `nginx-gateway` saudável. O mesmo script pode ser executado do host com
+`node scripts/verify-flow.mjs`; a variável `GATEWAY_URL` define o gateway
+(padrão `http://localhost:8080`, `http://nginx-gateway` no container).
+
+Regras do roteiro:
+
+- Antes do fluxo, o roteiro valida o gateway (seção 11): um `X-Request-Id`
+  válido é devolvido no cabeçalho e no `traceId` do 401 de Pedidos; um valor
+  inválido é substituído por um id gerado; `GET /api/v1/products/:id` retorna
+  405 `METHOD_NOT_ALLOWED` com `Allow: PUT`; `/internal/` retorna 404
+  `ROUTE_NOT_FOUND` mesmo com `X-Internal-Token`.
+- Todas as chamadas passam pelo gateway; nenhuma rota `/internal/` chega a um serviço.
+- O JWT utilizado é o `accessToken` emitido pelo login do usuário recém
+  cadastrado, com e-mail único por execução.
+- Cada requisição envia um `X-Request-Id` próprio.
+- As projeções de Produto (`GET /api/v1/products?id=`) e de Estoque
+  (`GET /api/v1/inventory/:productId`) são aguardadas com polling (até 60
+  tentativas a cada 250 ms), pois a consistência é eventual.
+- O pedido é validado com `status` `CREATED`, `userId` igual ao `id` do
+  usuário cadastrado, `unitPrice` 34.90 e `total` 69.80; a criação sem JWT
+  retorna 401.
+- A consulta retorna o mesmo pedido criado; a conclusão e a sua repetição
+  retornam 200 com o mesmo corpo `COMPLETED`, sem alterar `updatedAt`.
+- Ao final, a projeção de estoque deverá convergir de 20 para 18 unidades,
+  refletindo o débito feito por Pedidos.
+
 ### 12.4 Contrato Swagger
 
 O projeto deverá possuir validação automatizada do documento OpenAPI por meio
@@ -980,6 +1162,21 @@ health, dos métodos HTTP, dos filtros `id` e `name` na listagem, do esquema
 Bearer JWT, do header `X-Internal-Token` e dos schemas de produto, erro e
 health.
 
+Para Auth, `npm run verify:swagger:auth` deverá confirmar o título, as três
+rotas da seção 11.1 e somente elas, as respostas 201/400/409/500 do cadastro e
+200/400/401/500 do login, a ausência de exigência de JWT, os corpos JSON, os
+schemas `RegisterUserDto`, `LoginDto`, `UserResponseDto`, `LoginResponseDto`,
+`ErrorResponseDto` e `HealthResponseDto`, a ausência de senha na resposta de
+usuário e HTTP 200 em `/auth/docs` e nos recursos da interface.
+
+Para Pedidos, `npm run verify:swagger:orders` deverá confirmar o título, as
+quatro rotas da seção 11.1 e somente elas, as respostas
+201/400/401/404/409/500/503 da criação, 200/400/401/403/404/500 da consulta e
+200/400/401/403/404/409/500 da conclusão (sem 201 e sem corpo), a exigência do
+esquema `jwt`, o parâmetro de rota `id`, o corpo `CreateOrderDto` sem `userId`,
+os schemas `CreateOrderDto`, `OrderResponseDto`, `ErrorResponseDto` e
+`HealthResponseDto` e HTTP 200 em `/orders/docs` e nos recursos da interface.
+
 ## 13. Comandos de execução
 
 O README ou a documentação de execução deverá apresentar comandos equivalentes a:
@@ -990,39 +1187,66 @@ docker compose --env-file .env -f infra/docker/docker-compose.yml ps
 docker compose --env-file .env -f infra/docker/docker-compose.yml logs -f products-service
 docker compose --env-file .env -f infra/docker/docker-compose.yml down
 npm run verify:swagger:products
+npm run verify:swagger:auth
+npm run verify:swagger:orders
+npm run verify:swagger:inventory
+npm run verify:flow:inventory
+npm run verify:flow
 ~~~
 
-Para cada microsserviço, deverá existir comando de teste equivalente a:
+Para cada microsserviço, deverá existir comando de teste com cobertura:
 
 ~~~bash
-npm test -- --coverage
+npm run test:products
+npm run test:auth
+npm run test:orders
+npm run test:inventory
 ~~~
 
 O trabalho deverá ser considerado inválido se qualquer microsserviço ficar abaixo da cobertura mínima de 50%.
 
+Para demonstração manual, `docs/roteiro-apresentacao.md` descreve o passo a
+passo pelo gateway, com as coleções Bruno (`docs/bruno/`) e Insomnia
+(`docs/insomnia-delivery.json`). O
+script `bash scripts/demo-manual.sh` (opção `--pausa`, variável `GATEWAY_URL`)
+executa os mesmos passos com `curl` e falha se algum HTTP diferir do esperado.
+A visão geral resumida da arquitetura está em `docs/arquitetura.md`.
+
 ## 14. Critérios de aceite
 
-- [ ] Todos os seis bancos PostgreSQL estão definidos no Compose.
-- [ ] Nginx encaminha somente as rotas externas.
-- [ ] Rotas "/internal/" não estão expostas pelo Nginx.
-- [ ] Auth cadastra usuários e emite JWT.
-- [ ] Todos os serviços protegidos validam JWT.
-- [ ] Produtos possui banco de escrita e banco de leitura.
-- [ ] Estoque possui banco de escrita e banco de leitura.
-- [ ] Produtos e Estoque utilizam RabbitMQ para projeções.
-- [ ] Outbox é gravada na mesma transação dos comandos.
-- [ ] Pedidos consulta Produtos via REST.
-- [ ] Pedidos debita Estoque via REST.
-- [ ] Pedidos possui rota de conclusão.
-- [ ] Conclusão só pode ser feita pelo proprietário.
-- [ ] Conclusão repetida é idempotente.
-- [ ] Health checks estão configurados.
-- [ ] Todas as rotas do serviço de Produtos aparecem corretamente no Swagger.
-- [ ] `/docs` e `/docs-json` funcionam quando Swagger está habilitado.
-- [ ] Swagger fica desabilitado em produção.
-- [ ] Todos os microsserviços possuem testes unitários.
-- [ ] Cada microsserviço possui pelo menos 50% de cobertura.
-- [ ] Nenhum segredo real está versionado.
+- [x] Todos os seis bancos PostgreSQL estão definidos no Compose.
+- [x] Nginx encaminha somente as rotas externas.
+- [x] Rotas "/internal/" não estão expostas pelo Nginx.
+- [x] Auth cadastra usuários e emite JWT.
+- [x] Todos os serviços protegidos validam JWT.
+- [x] Produtos possui banco de escrita e banco de leitura.
+- [x] Estoque possui banco de escrita e banco de leitura.
+- [x] Produtos e Estoque utilizam RabbitMQ para projeções.
+- [x] Outbox é gravada na mesma transação dos comandos.
+- [x] Pedidos consulta Produtos via REST.
+- [x] Pedidos debita Estoque via REST.
+- [x] Pedidos possui rota de conclusão.
+- [x] Conclusão só pode ser feita pelo proprietário.
+- [x] Conclusão repetida é idempotente.
+- [x] Health checks estão configurados.
+- [x] Todas as rotas do serviço de Produtos aparecem corretamente no Swagger.
+- [x] `/docs` e `/docs-json` funcionam quando Swagger está habilitado.
+- [x] Swagger fica desabilitado em produção.
+- [x] Todos os microsserviços possuem testes unitários.
+- [x] Cada microsserviço possui pelo menos 50% de cobertura.
+- [x] Nenhum segredo real está versionado.
+
+Verificação realizada em 2026-09-23 (versão 2.8), com `npm run infra:up`:
+
+| Critério | Evidência |
+|---|---|
+| Rotas do gateway e bloqueio de `/internal/` | `npm run verify:flow` e `npm run verify:flow:inventory` (404 `ROUTE_NOT_FOUND`, 405 em `/api/v1/products/:id`) |
+| JWT nos serviços protegidos | 401 sem JWT nos roteiros e nas suítes de Produtos, Estoque e Pedidos |
+| CQRS, RabbitMQ e Outbox | projeções convergindo em `verify:flow`; Outbox e eventos em `verify:flow:inventory` e nas suítes |
+| Health checks | todos os 12 containers `healthy` no Compose |
+| Swagger | `verify:swagger:{products,auth,orders,inventory}`, HTTP 200 em `/docs` e `/docs-json`, bloqueio com `NODE_ENV=production` coberto por testes |
+| Testes e cobertura (branches) | Produtos 85,7%, Auth 97,7%, Pedidos 98,9%, Estoque 95,6% (JaCoCo, `mvn verify` com Testcontainers) |
+| Segredos | somente `.env.example` versionado, com valores de desenvolvimento |
 
 ## 15. Assumptions
 
@@ -1032,14 +1256,16 @@ O trabalho deverá ser considerado inválido se qualquer microsserviço ficar ab
 - A conclusão altera o status para "COMPLETED".
 - Não existe rota de cancelamento nesta versão.
 - Auth e Pedidos utilizam um banco próprio cada.
+- Auth e Pedidos são implementados em TypeScript/NestJS, como Produtos.
 - Produtos e Estoque utilizam CQRS.
 - A consistência dos bancos de leitura é eventual.
 - Rotas internas são protegidas por "X-Internal-Token".
-- A implementação é incremental; nesta etapa Produtos e Estoque estão ativos.
+- Os quatro microsserviços (Auth, Produtos, Estoque e Pedidos) estão implementados; os critérios da seção 14 descrevem o estado verificado.
 
-## 16. Estado da implementação inicial
+## 16. Histórico da primeira fatia (Produtos)
 
-A branch "funcionalidade/produtos-inicial" entrega a primeira fatia vertical
+Registro histórico. O estado atual do sistema está nas seções 14 e 17 a 19.
+A branch "funcionalidade/produtos-inicial" entregou a primeira fatia vertical
 do sistema:
 
 - "services/products" contém o microsserviço NestJS de Produtos.
@@ -1047,10 +1273,11 @@ do sistema:
 - "products-read-db" mantém a projeção usada pelas consultas.
 - RabbitMQ publica "product.created" e "product.updated" no exchange
   "delivery.events".
-- "infra/nginx/nginx.conf" expõe somente as rotas públicas de Produtos e
-  bloqueia "/internal/".
-- "AUTH_ENABLED=false" é usado apenas pelo Compose local enquanto Auth não
-  existe; "X-Internal-Token" continua obrigatório para a rota interna.
+- "infra/nginx/nginx.conf" expunha somente as rotas públicas de Produtos e
+  bloqueava "/internal/"; hoje encaminha as rotas dos quatro serviços
+  (seção 11).
+- As rotas externas exigem JWT válido em qualquer ambiente; "X-Internal-Token"
+  continua obrigatório para a rota interna.
 - Swagger/OpenAPI documenta todas as rotas públicas, internas e de health; a
   validação do contrato é executada por "npm run verify:swagger:products".
 - A consulta pública de produtos aceita os filtros opcionais `id` exato e
@@ -1058,15 +1285,15 @@ do sistema:
 - A cobertura do serviço de Produtos possui limiar de 50% para branches,
   functions, lines e statements, com suíte unitária independente.
 
-As próximas implementações deverão adicionar Auth e Pedidos sem
-alterar os limites de dados, rotas internas e contratos definidos nesta
-especificação.
+Estoque (seção 17), Auth (seção 18) e Pedidos (seção 19) foram adicionados
+depois, sem alterar os limites de dados, as rotas internas e os contratos
+definidos nesta especificação.
 
 
 ## 17. Implementação de Estoque (versão 2.0)
 
 `services/inventory` é uma aplicação Java 21 / Spring Boot independente,
-construída com Maven. Produtos continua em NestJS. Controllers, casos de uso,
+construída com Maven. Produtos, Auth e Pedidos são NestJS. Controllers, casos de uso,
 interfaces e adaptadores Spring JDBC são injetados pelo construtor.
 `StockRules` concentra as regras de quantidade, saldo e repetição de pedidos.
 Há dois DataSources e dois gerenciadores de transação, `writeTransactionManager`
@@ -1088,8 +1315,8 @@ e `readTransactionManager`. Migrações Flyway são executadas antes dos reposit
 - Repetição do mesmo `orderId`, produto e quantidade retorna a resposta original,
   sem nova movimentação ou evento. Mesmo pedido com dados diferentes retorna
   409 (`IDEMPOTENCY_CONFLICT`).
-- JWT é obrigatório nas rotas públicas de Estoque, inclusive no ambiente local.
-  `AUTH_ENABLED=false` continua restrito a Produtos; use o gerador de JWT do projeto.
+- JWT é obrigatório nas rotas públicas de Estoque, inclusive no ambiente local;
+  use o login do Auth ou o gerador de JWT do projeto.
 - O cadastro de estoque recebe o UUID do produto sem consultar outro banco ou
   serviço; validação da existência do produto não faz parte deste contrato.
 
@@ -1117,12 +1344,13 @@ O Compose `delivery` adiciona Estoque e dois PostgreSQL privados com volumes
 O Nginx encaminha `/api/v1/inventory` e bloqueia `/internal/`.
 Swagger interno usa `/docs` e `/docs-json`; pelo gateway, fica em
 `/inventory/docs` e `/inventory/docs-json`. Só é habilitado com
-`SWAGGER_ENABLED=true` fora de produção. `NODE_ENV=production` e os perfis Spring `prod`/`production` desabilitam Swagger mesmo com a flag ativa. Os recursos estáticos locais são encaminhados por `/inventory/swagger-ui/`. Produtos mantém seus endpoints anteriores.
+`SWAGGER_ENABLED=true` fora de produção. `NODE_ENV=production` e os perfis Spring `prod`/`production` desabilitam Swagger mesmo com a flag ativa. Os recursos estáticos locais são encaminhados por `/inventory/swagger-ui/`.
 
 Configuração: `INVENTORY_PORT`, `INVENTORY_WRITE_DB_{HOST,PORT,NAME,USER,PASSWORD}`,
 `INVENTORY_READ_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `RABBITMQ_INVENTORY_QUEUE`,
-`RABBITMQ_URL`, `RABBITMQ_EXCHANGE`, `JWT_SECRET`, `INTERNAL_SERVICE_TOKEN`
-e `SWAGGER_ENABLED`. Exemplos locais ficam em `.env.example`.
+`RABBITMQ_URL` (usuário `inventory`, seção 7.4), `RABBITMQ_EXCHANGE`,
+`JWT_SECRET`, `INTERNAL_SERVICE_TOKEN` e `SWAGGER_ENABLED`. Exemplos locais
+ficam em `.env.example`.
 
 Validação:
 
@@ -1142,8 +1370,7 @@ interno, bloqueio pelo gateway, adição, projeção, dez débitos simultâneos 
 mesmo pedido, débitos concorrentes com estoque limitado, movimentações, Outbox
 e evento antigo. Execute-o em ambiente de desenvolvimento/teste.
 A suíte própria exige ao menos 50% nas quatro métricas JaCoCo definidas na seção 12.1.
-Auth e Pedidos ainda não estão implementados; o fluxo completo da seção 12.3
-permanece para a integração futura desses serviços.
+O fluxo completo da seção 12.3, com Pedidos, é um roteiro separado.
 
 
 ### 17.1 Preservação dos dados da versão NestJS
@@ -1166,6 +1393,10 @@ serviço mantém o saldo e reconhece o pedido já processado.
 - `mvn -f services/inventory/pom.xml verify`: unitários + integração PostgreSQL
   com Testcontainers + cobertura JaCoCo. Exige Docker; os testes não são omitidos
   silenciosamente quando ele está indisponível.
+- Sem JDK no host, o mesmo `verify` pode ser executado em container:
+  `docker run --rm -e TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD":/work -w /work maven:3.9-eclipse-temurin-21 mvn -B -f services/inventory/pom.xml verify`.
+  O override é necessário no Docker Desktop, para que o Testcontainers alcance
+  as portas dos containers de teste.
 - `mvn -f services/inventory/pom.xml -DskipTests package`: gera o JAR executável.
 - Relatório: `services/inventory/target/site/jacoco/index.html`.
 - O Dockerfile compila com Maven/JDK 21 e executa somente Java no estágio final.
@@ -1173,7 +1404,7 @@ serviço mantém o saldo e reconhece o pedido já processado.
 - `npm run verify:flow:inventory` usa o container auxiliar `inventory-check`,
   ativado apenas pelo perfil Compose `tools`. Ele contém Node para executar o
   roteiro já existente; o serviço de Estoque não depende de Node.
-- Os únicos workspaces npm são os serviços TypeScript, atualmente Produtos.
+- Os únicos workspaces npm são os serviços TypeScript: Produtos, Auth e Pedidos.
 
 ### 17.3 Mapa das classes para estudo
 
@@ -1182,3 +1413,105 @@ Veja `services/inventory/README.md`: o fluxo principal é
 `StockRules` contém as regras, executadas dentro da transação pelo adaptador
 quando dependem do saldo. `OutboxPublisherWorker` publica eventos e
 `StockReadProjectorConsumer` atualiza o banco de leitura.
+
+
+## 18. Implementação de Auth (versão 2.2)
+
+`services/auth` é um workspace npm NestJS independente. O fluxo principal é
+`AuthController → RegisterUserUseCase/LoginUseCase → portas
+(USER_REPOSITORY, PASSWORD_HASHER, TOKEN_ISSUER)`, implementadas por
+`TypeOrmUserRepository`, `BcryptPasswordHasher` e `JwtTokenIssuer`, todas
+registradas no `AuthModule` por injeção de dependências.
+
+### Contratos e regras
+
+- `POST /api/v1/auth/register`: 201 com `id`, `name`, `email` e `createdAt`.
+  A senha e o hash nunca são retornados.
+- `POST /api/v1/auth/login`: 200 com `accessToken`, `tokenType` (`Bearer`),
+  `expiresIn` (segundos) e `user` (`id`, `name`, `email`).
+- Códigos de erro: `VALIDATION_ERROR` (400), `EMAIL_ALREADY_REGISTERED` (409),
+  `INVALID_CREDENTIALS` (401) e `INTERNAL_SERVER_ERROR` (500). Erros 5xx
+  retornam a mensagem genérica "Erro interno do servidor", sem detalhes
+  internos. O `traceId` vem de `X-Request-Id` ou é gerado quando ausente.
+- O e-mail é normalizado (espaços removidos e letras minúsculas) no cadastro e
+  no login.
+- A senha é armazenada com bcryptjs, custo 10. No login com e-mail
+  inexistente, a senha é comparada com um hash fictício para não revelar, pelo
+  tempo de resposta, quais e-mails estão cadastrados.
+- O JWT é assinado com HS256 e `JWT_SECRET` e contém `sub` (id do usuário),
+  `email`, `iat` e `exp`. `JWT_EXPIRES_IN` inválido impede a inicialização.
+- O serviço não registra corpo de requisições, senhas ou tokens em log.
+
+### Dados
+
+"auth-db" (PostgreSQL 16, volume `auth-data`, sem porta publicada) contém a
+tabela `users` (`id` uuid, `name` varchar(120), `email` varchar(254) único,
+`password_hash` varchar(100), `created_at` timestamptz). A unicidade do e-mail
+é garantida pelo banco; uma violação concorrente (`23505`) também retorna 409.
+
+### Configuração e validação
+
+Variáveis: `AUTH_PORT`, `AUTH_DB_{HOST,PORT,NAME,USER,PASSWORD}`,
+`JWT_SECRET`, `JWT_EXPIRES_IN`, `NODE_ENV` e `SWAGGER_ENABLED`.
+
+~~~bash
+npm run test:auth
+npm run infra:up
+npm run verify:swagger:auth
+~~~
+
+A suíte de Auth cobre os casos da seção 12.2 com portas mockadas, validação
+dos DTOs, geração e validação de JWT, hash bcrypt, mapeamento de erros HTTP
+com Supertest, repositório TypeORM e contrato OpenAPI, com limiar Jest de 50%.
+
+
+## 19. Implementação de Pedidos (versão 2.4)
+
+`services/orders` é um workspace npm NestJS independente. O fluxo principal é
+`OrdersController → CreateOrderUseCase/GetOrderUseCase/CompleteOrderUseCase →
+portas (ORDER_REPOSITORY, PRODUCTS_CLIENT, INVENTORY_CLIENT)`, implementadas por
+`TypeOrmOrderRepository`, `ProductsHttpClient` e `InventoryHttpClient`, todas
+registradas no `OrdersModule` por injeção de dependências. As regras de total,
+propriedade e transição de status ficam em `domain/order.ts`.
+
+### Contratos e regras
+
+- `POST /api/v1/orders`: 201 com o pedido `CREATED` (seção 3.8).
+- `GET /api/v1/orders/:id`: 200 somente para o proprietário (seção 3.9).
+- `POST /api/v1/orders/:id/complete`: 200, idempotente (seção 3.10).
+- `GET /health`: `service` igual a `orders-service`.
+- Códigos de erro: `VALIDATION_ERROR` (400), `UNAUTHORIZED` (401),
+  `ORDER_FORBIDDEN` (403), `ORDER_NOT_FOUND` e `PRODUCT_NOT_FOUND` (404),
+  `PRODUCT_INACTIVE`, `INSUFFICIENT_STOCK` e `INVALID_ORDER_STATUS` (409),
+  `DEPENDENCY_UNAVAILABLE` (503) e `INTERNAL_SERVER_ERROR` (500). A mensagem
+  de 503 identifica apenas a dependência; os demais 5xx retornam "Erro interno
+  do servidor".
+- O JWT é validado localmente com `JWT_SECRET` (HS256); o `userId` é o claim
+  `sub`, que deverá ser texto não vazio.
+- Os clientes REST usam `fetch` com `AbortSignal.timeout`, `X-Internal-Token`
+  e `X-Request-Id`; o token interno nunca é registrado em log.
+
+### Dados
+
+"orders-db" (PostgreSQL 16, volume `orders-data`, sem porta publicada) contém a
+tabela `orders` (`id` uuid, `user_id` uuid indexado, `product_id` uuid,
+`quantity` integer > 0, `unit_price` numeric(12,2), `total` numeric(20,2),
+`status` varchar(20) restrito a `CREATED`/`COMPLETED`, `created_at` e
+`updated_at` timestamptz). Pedidos não acessa bancos de Produtos ou Estoque.
+
+### Configuração e validação
+
+Variáveis: `ORDERS_PORT`, `ORDERS_DB_{HOST,PORT,NAME,USER,PASSWORD}`,
+`PRODUCTS_SERVICE_URL`, `INVENTORY_SERVICE_URL`, `ORDERS_HTTP_TIMEOUT_MS`,
+`JWT_SECRET`, `INTERNAL_SERVICE_TOKEN`, `NODE_ENV` e `SWAGGER_ENABLED`.
+
+~~~bash
+npm run test:orders
+npm run infra:up
+npm run verify:swagger:orders
+~~~
+
+A suíte de Pedidos cobre os 14 casos da seção 12.2 com repositório e clientes
+REST mockados, o guard JWT e o mapeamento de erros HTTP com Supertest, os
+clientes REST com `fetch` mockado (timeout, falha de rede, 5xx e respostas
+inesperadas), o repositório TypeORM e o contrato OpenAPI, com limiar Jest de 50%.

@@ -1,0 +1,97 @@
+import {
+  ArgumentsHost,
+  BadRequestException,
+  HttpException,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+import { HttpErrorFilter } from './http-error.filter';
+
+function hostFor(headers: Record<string, string> = {}) {
+  const json = jest.fn();
+  const status = jest.fn().mockReturnValue({ json });
+  const host = {
+    switchToHttp: () => ({
+      getResponse: () => ({ status }),
+      getRequest: () => ({
+        url: '/api/v1/auth/login',
+        header: (name: string) => headers[name.toLowerCase()],
+      }),
+    }),
+  } as unknown as ArgumentsHost;
+  return { host, status, json };
+}
+
+describe('HttpErrorFilter', () => {
+  const filter = new HttpErrorFilter();
+
+  it('usa X-Request-Id como traceId e mantém mensagens de validação', () => {
+    const { host, status, json } = hostFor({ 'x-request-id': 'req-8f82c4' });
+
+    filter.catch(new BadRequestException(['email must be an email']), host);
+
+    expect(status).toHaveBeenCalledWith(400);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 400,
+        code: 'VALIDATION_ERROR',
+        message: ['email must be an email'],
+        path: '/api/v1/auth/login',
+        traceId: 'req-8f82c4',
+      }),
+    );
+  });
+
+  it('gera traceId quando o cabeçalho não é enviado', () => {
+    const { host, json } = hostFor();
+
+    filter.catch(new NotFoundException(), host);
+
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: 'NOT_FOUND',
+        traceId: expect.stringMatching(/^[0-9a-f-]{36}$/u),
+      }),
+    );
+  });
+
+  it('mantém código informado pela exceção e usa mensagem textual', () => {
+    const { host, json } = hostFor();
+
+    filter.catch(new HttpException('Conflito', 409), host);
+    filter.catch(new HttpException({ code: 'CUSTOM', message: 'x' }, 418), host);
+
+    expect(json).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ code: 'CONFLICT', message: 'Conflito' }),
+    );
+    expect(json).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ status: 418, code: 'CUSTOM', message: 'x' }),
+    );
+  });
+
+  it('oculta detalhes de erros 5xx e de exceções não HTTP', () => {
+    const { host, status, json } = hostFor();
+
+    filter.catch(new ServiceUnavailableException('detalhe interno'), host);
+    filter.catch(new Error('stack com segredo'), host);
+
+    expect(status).toHaveBeenNthCalledWith(1, 503);
+    expect(status).toHaveBeenNthCalledWith(2, 500);
+    expect(json).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        code: 'DEPENDENCY_UNAVAILABLE',
+        message: 'Erro interno do servidor',
+      }),
+    );
+    expect(json).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Erro interno do servidor',
+      }),
+    );
+  });
+});

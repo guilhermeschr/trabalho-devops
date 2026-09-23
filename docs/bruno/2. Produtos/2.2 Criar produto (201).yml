@@ -1,0 +1,43 @@
+info:
+  name: "2.2 Criar produto (201)"
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/v1/products"
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Hambúrguer artesanal",
+        "description": "Hambúrguer com queijo e molho especial",
+        "price": 29.9,
+        "active": true
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "201"
+  actions:
+    - type: set-variable
+      phase: after-response
+      selector:
+        expression: res.body.id
+        method: jsonq
+      variable:
+        name: productId
+        scope: runtime
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: "Grava `productId`. Gera `product.created` na Outbox."

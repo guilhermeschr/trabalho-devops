@@ -1,0 +1,3 @@
+export const ORDER_REPOSITORY = Symbol('ORDER_REPOSITORY');
+export const PRODUCTS_CLIENT = Symbol('PRODUCTS_CLIENT');
+export const INVENTORY_CLIENT = Symbol('INVENTORY_CLIENT');

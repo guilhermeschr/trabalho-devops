@@ -1,0 +1,32 @@
+info:
+  name: "2.4 Preço inválido (400)"
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/v1/products"
+  body:
+    type: json
+    data: |-
+      {
+        "name": "X",
+        "description": "Y",
+        "price": -1,
+        "active": true
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "400"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

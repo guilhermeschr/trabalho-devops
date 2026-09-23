@@ -1,0 +1,8 @@
+name: local
+variables:
+  - name: baseUrl
+    value: http://localhost:8080
+  - name: senha
+    value: SenhaSegura123
+  - name: produtoInexistente
+    value: 00000000-0000-4000-8000-000000000000

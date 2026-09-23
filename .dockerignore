@@ -5,6 +5,10 @@ coverage
 dist
 services/products/dist
 services/products/coverage
+services/auth/dist
+services/auth/coverage
+services/orders/dist
+services/orders/coverage
 npm-debug.log
 
 services/inventory/target

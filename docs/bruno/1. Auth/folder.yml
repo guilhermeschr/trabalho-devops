@@ -1,0 +1,8 @@
+info:
+  name: "1. Auth"
+  type: folder
+  seq: 1
+
+docs:
+  content: "Cadastro e login (rotas públicas). Os cadastros geram e-mails únicos a cada execução."
+  type: text/markdown

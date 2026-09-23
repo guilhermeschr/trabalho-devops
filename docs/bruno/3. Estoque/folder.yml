@@ -1,0 +1,8 @@
+info:
+  name: "3. Estoque"
+  type: folder
+  seq: 3
+
+docs:
+  content: "Serviço Java/Spring com CQRS: escrita em inventory-write-db, consulta em inventory-read-db."
+  type: text/markdown

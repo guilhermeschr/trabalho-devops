@@ -1,0 +1,25 @@
+info:
+  name: "6.2 Consultar estoque com Estoque parado (503)"
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/v1/inventory/{{productId}}"
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "503"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: "`SERVICE_UNAVAILABLE`, gerado pelo próprio gateway."

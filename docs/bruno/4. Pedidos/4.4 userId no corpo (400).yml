@@ -1,0 +1,33 @@
+info:
+  name: "4.4 userId no corpo (400)"
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/v1/orders"
+  body:
+    type: json
+    data: |-
+      {
+        "productId": "{{productId}}",
+        "quantity": 1,
+        "userId": "{{produtoInexistente}}"
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "400"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: "O `userId` vem somente do claim `sub` do JWT."

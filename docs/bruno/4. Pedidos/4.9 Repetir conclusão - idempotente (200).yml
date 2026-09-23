@@ -1,0 +1,25 @@
+info:
+  name: "4.9 Repetir conclusão - idempotente (200)"
+  type: http
+  seq: 9
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/v1/orders/{{orderId}}/complete"
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: "Mesmo corpo e mesmo `updatedAt` da conclusão anterior."

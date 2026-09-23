@@ -4,7 +4,9 @@
   "private": true,
   "description": "Sistema de delivery com microsserviços",
   "workspaces": [
-    "services/products"
+    "services/products",
+    "services/auth",
+    "services/orders"
   ],
   "scripts": {
     "build:products": "npm --workspace services/products run build",
@@ -12,6 +14,14 @@
     "typecheck": "npm run typecheck --workspaces",
     "test:products": "npm --workspace services/products run test:cov --",
     "verify:swagger:products": "node scripts/verify-products-swagger.mjs",
+    "build:auth": "npm --workspace services/auth run build",
+    "dev:auth": "npm --workspace services/auth run start:dev",
+    "test:auth": "npm --workspace services/auth run test:cov --",
+    "verify:swagger:auth": "node scripts/verify-auth-swagger.mjs",
+    "build:orders": "npm --workspace services/orders run build",
+    "dev:orders": "npm --workspace services/orders run start:dev",
+    "test:orders": "npm --workspace services/orders run test:cov --",
+    "verify:swagger:orders": "node scripts/verify-orders-swagger.mjs",
     "infra:config": "docker compose --env-file .env -f infra/docker/docker-compose.yml config",
     "infra:up": "docker compose --env-file .env -f infra/docker/docker-compose.yml up --build --force-recreate",
     "infra:down": "docker compose --env-file .env -f infra/docker/docker-compose.yml down",
@@ -19,6 +29,7 @@
     "dev:inventory": "mvn -f services/inventory/pom.xml spring-boot:run",
     "test:inventory": "mvn -f services/inventory/pom.xml verify",
     "verify:swagger:inventory": "node scripts/verify-inventory-swagger.mjs",
-    "verify:flow:inventory": "docker compose --env-file .env -f infra/docker/docker-compose.yml --profile tools run --rm inventory-check"
+    "verify:flow:inventory": "docker compose --env-file .env -f infra/docker/docker-compose.yml --profile tools run --rm inventory-check",
+    "verify:flow": "docker compose --env-file .env -f infra/docker/docker-compose.yml --profile tools run --rm flow-check"
   }
 }

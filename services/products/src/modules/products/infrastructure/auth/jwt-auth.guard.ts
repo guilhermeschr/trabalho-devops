@@ -20,11 +20,6 @@ export class JwtAuthGuard implements CanActivate {
   ) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const authEnabled = this.configService.get<string>('AUTH_ENABLED', 'true');
-    if (authEnabled.toLowerCase() === 'false') {
-      return true;
-    }
-
     const request = context
       .switchToHttp()
       .getRequest<RequestWithUser>();

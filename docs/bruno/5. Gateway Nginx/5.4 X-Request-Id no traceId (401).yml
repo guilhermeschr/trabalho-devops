@@ -1,0 +1,29 @@
+info:
+  name: "5.4 X-Request-Id no traceId (401)"
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/v1/orders"
+  headers:
+    - name: X-Request-Id
+      value: "apresentacao-001"
+  body:
+    type: json
+    data: |-
+      {}
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "401"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: "Header de resposta e `traceId` iguais a `apresentacao-001`. Depois: `docker compose ... logs nginx-gateway | grep apresentacao-001`."

@@ -1,0 +1,45 @@
+info:
+  name: "4.1 Criar pedido (201)"
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/v1/orders"
+  body:
+    type: json
+    data: |-
+      {
+        "productId": "{{productId}}",
+        "quantity": 2
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        await bru.sleep(1000); // aguarda a projeção (consistência eventual)
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "201"
+  actions:
+    - type: set-variable
+      phase: after-response
+      selector:
+        expression: res.body.id
+        method: jsonq
+      variable:
+        name: orderId
+        scope: runtime
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: "Grava `orderId`. Esperado `CREATED`, `unitPrice` 34.9 e `total` 69.8."

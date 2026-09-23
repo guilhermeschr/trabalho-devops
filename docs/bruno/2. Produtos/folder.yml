@@ -1,0 +1,8 @@
+info:
+  name: "2. Produtos"
+  type: folder
+  seq: 2
+
+docs:
+  content: "CQRS: escrita em products-write-db + Outbox; consultas em products-read-db (consistência eventual)."
+  type: text/markdown

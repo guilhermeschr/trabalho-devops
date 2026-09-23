@@ -1,6 +1,16 @@
 # Trabalho DevOps
 
-Sistema de delivery com microsserviços. Produtos e Estoque estão implementados.
+Sistema de delivery com microsserviços. Auth, Produtos, Estoque e Pedidos estão implementados.
+
+## Documentação
+
+- [Arquitetura](docs/arquitetura.md): visão geral resumida do sistema (serviços,
+  bancos, autenticação, CQRS, logs e storage).
+- [Roteiro de apresentação](docs/roteiro-apresentacao.md): passo a passo de
+  testes manuais com as coleções Bruno (`docs/bruno/`) e Insomnia
+  (`docs/insomnia-delivery.json`), o script `scripts/demo-manual.sh` e as verificações ponta a ponta.
+- [Especificação](docs/especificacao-delivery-microservicos.md): fonte de
+  verdade dos contratos, fluxos e critérios de aceite.
 
 ## Requisitos locais
 
@@ -60,8 +70,17 @@ A consulta por ID existe somente em `/internal/v1/products/:id`, acessível
 dentro da rede Docker com `X-Internal-Token`; o Nginx retorna 404 para
 `/internal/`.
 
-O ambiente inicial usa AUTH_ENABLED=false apenas para desenvolvimento local.
-Em qualquer ambiente real, configure AUTH_ENABLED=true e um JWT_SECRET seguro.
+O gateway repassa o `X-Request-Id` do cliente (letras, números e `._:-`, até
+128 caracteres) ou gera um novo e o devolve na resposta. Ele nunca repassa
+`X-Internal-Token` recebido de fora. Erros gerados pelo próprio Nginx seguem o
+formato JSON da especificação: 404 `ROUTE_NOT_FOUND` para rotas inexistentes e
+`/internal/`, 405 `METHOD_NOT_ALLOWED` para métodos diferentes de `PUT` em
+`/api/v1/products/:id` e 503 `SERVICE_UNAVAILABLE` quando o serviço de destino
+está fora do ar.
+
+As rotas públicas de Produtos e Estoque sempre exigem `Authorization: Bearer <jwt>`,
+em qualquer ambiente. Obtenha o token pelo login do Auth ou pelo gerador abaixo.
+Em qualquer ambiente real, configure um JWT_SECRET seguro.
 O token de serviço interno deve ser diferente do segredo JWT.
 
 O Swagger é habilitado no ambiente local por `SWAGGER_ENABLED=true`. Em
@@ -85,8 +104,69 @@ docker compose --env-file .env -f infra/docker/docker-compose.yml ps
 docker compose --env-file .env -f infra/docker/docker-compose.yml logs -f products-service
 ~~~
 
-A implementação contém Produtos e Estoque, cada um com dois bancos CQRS,
-RabbitMQ e o gateway Nginx. Auth e Pedidos serão adicionados posteriormente.
+A implementação contém Auth, com banco próprio, e Produtos e Estoque, cada um
+com dois bancos CQRS, Pedidos com "orders-db", RabbitMQ e o gateway Nginx.
+
+## Auth — cadastro e login
+
+Rotas públicas (sem JWT):
+
+- `POST /api/v1/auth/register`: `{ "name", "email", "password" }`. O e-mail é
+  normalizado para minúsculas e a senha, com 8 a 72 caracteres, é gravada
+  somente como hash bcrypt. Retorna 201; e-mail duplicado retorna 409.
+- `POST /api/v1/auth/login`: `{ "email", "password" }`. Retorna 200 com
+  `accessToken`, `tokenType`, `expiresIn` e `user`; credenciais inválidas
+  retornam 401.
+
+~~~bash
+curl -s http://localhost:8080/api/v1/auth/register -H 'Content-Type: application/json' \
+  -d '{"name":"Maria Silva","email":"maria@example.com","password":"SenhaSegura123"}'
+TOKEN=$(curl -s http://localhost:8080/api/v1/auth/login -H 'Content-Type: application/json' \
+  -d '{"email":"maria@example.com","password":"SenhaSegura123"}' | node -pe 'JSON.parse(require("fs").readFileSync(0)).accessToken')
+curl -s -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/inventory/<product-id>
+~~~
+
+O JWT é assinado com `JWT_SECRET` (HS256, claims `sub`, `email`, `iat` e `exp`)
+e validado localmente pelos demais serviços. A validade vem de
+`JWT_EXPIRES_IN`, em segundos.
+
+Swagger de Auth: http://localhost:8080/auth/docs.
+
+~~~bash
+npm run test:auth
+npm run build:auth
+npm run verify:swagger:auth
+~~~
+
+## Pedidos — criação, consulta e conclusão
+
+Todas as rotas exigem JWT; o `userId` vem do claim `sub`.
+
+- `POST /api/v1/orders`: `{ "productId": "<uuid>", "quantity": 2 }`. Consulta
+  o produto em Produtos, debita o estoque em Estoque (idempotente por
+  `orderId`) e grava o pedido com o preço consultado. Retorna 201 com status
+  `CREATED`; produto inexistente 404, produto inativo ou estoque insuficiente
+  409 e Produtos/Estoque indisponível 503.
+- `GET /api/v1/orders/:id`: somente o proprietário (outro usuário recebe 403).
+- `POST /api/v1/orders/:id/complete`: `CREATED → COMPLETED`; repetir retorna
+  200 sem nova alteração.
+
+~~~bash
+ORDER=$(curl -s http://localhost:8080/api/v1/orders -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' -d '{"productId":"<product-id>","quantity":2}')
+ORDER_ID=$(echo "$ORDER" | node -pe 'JSON.parse(require("fs").readFileSync(0)).id')
+curl -s -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/orders/$ORDER_ID
+curl -s -X POST -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/orders/$ORDER_ID/complete
+~~~
+
+O timeout das chamadas a Produtos e Estoque é `ORDERS_HTTP_TIMEOUT_MS`
+(padrão 3000). Swagger de Pedidos: http://localhost:8080/orders/docs.
+
+~~~bash
+npm run test:orders
+npm run build:orders
+npm run verify:swagger:orders
+~~~
 
 
 ## Estoque — Java e Spring Boot
@@ -95,8 +175,8 @@ RabbitMQ e o gateway Nginx. Auth e Pedidos serão adicionados posteriormente.
 - `GET /api/v1/inventory/:productId`: consulta o saldo projetado.
 - `POST /internal/v1/inventory/debit`: `{ "orderId": "<uuid>", "productId": "<uuid>", "quantity": 2 }`, somente na rede interna com `X-Internal-Token`.
 
-Rotas públicas sempre exigem `Authorization: Bearer <jwt>`, mesmo quando
-`AUTH_ENABLED=false` para Produtos. Gere um JWT com o script descrito acima.
+Rotas públicas sempre exigem `Authorization: Bearer <jwt>`. Use o token do
+login do Auth ou gere um JWT com o script descrito acima.
 Débitos repetidos do mesmo pedido retornam a resposta original sem descontar
 novamente; reutilizar o pedido com dados diferentes retorna 409.
 
@@ -118,3 +198,22 @@ Comece por `domain/StockRules.java` e `application/usecase/AddStockUseCase.java`
 O [guia do serviço](services/inventory/README.md) explica as pastas e as classes.
 Produtos permanece em NestJS. O serviço Java mantém os bancos e dados da
 versão anterior; não é necessário excluir volumes para migrar.
+
+## Fluxo completo entre os serviços
+
+Com a infraestrutura em execução, o roteiro da seção 12.3 da especificação
+valida o comportamento do gateway (`X-Request-Id`, 405 e 404) e percorre
+cadastro, login, criação de produto, adição de estoque, consulta das
+projeções de Produto e Estoque, criação, consulta e conclusão do pedido e a
+repetição da conclusão (idempotência). Todas as chamadas passam pelo gateway
+com o JWT real emitido pelo login, e as projeções são aguardadas com polling.
+
+~~~bash
+npm run infra:up
+npm run verify:flow
+~~~
+
+O comando executa o container `flow-check` (perfil `tools`). O mesmo roteiro
+pode ser executado do host com `node scripts/verify-flow.mjs`, usando
+`GATEWAY_URL` (padrão `http://localhost:8080`). Cada execução cria um usuário,
+um produto e um pedido de teste.
