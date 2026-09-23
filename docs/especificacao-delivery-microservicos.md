@@ -1,7 +1,7 @@
 # Especificação do Sistema de Delivery com Microsserviços
 
 **Status:** especificação de referência para implementação
-**Versão:** 2.7
+**Versão:** 2.8
 **Última atualização:** 2026-09-23
 **Idioma:** português
 **Objetivo:** orientar a construção, execução e validação de um sistema simples de delivery com foco em DevOps.
@@ -10,6 +10,7 @@
 
 | Versão | Data | Alteração |
 |---|---|---|
+| 2.8 | 2026-09-23 | Fechamento da especificação: checklist da seção 14 marcado conforme as suítes, a cobertura, os roteiros e o Swagger executados; seção 8 alinhada à organização real (`common/`, `health/`, `runtime/`); seções 10, 15, 16 e 17 atualizadas para os quatro serviços implementados |
 | 2.7 | 2026-09-23 | RabbitMQ passa a ter um usuário por serviço (`products` e `inventory`), com permissões restritas ao exchange `delivery.events` e às filas do próprio serviço, importados de `infra/rabbitmq/definitions.json` a cada inicialização |
 | 2.6 | 2026-09-23 | Nginx repassa `X-Request-Id` válido do cliente e gera um quando ausente ou inválido, descarta `X-Internal-Token` externo, aceita somente `PUT` em `/api/v1/products/:id` e retorna erros JSON (404 `ROUTE_NOT_FOUND`, 405 `METHOD_NOT_ALLOWED`, 503 `SERVICE_UNAVAILABLE`); `verify:flow` valida esse comportamento |
 | 2.5 | 2026-09-23 | Adicionado o roteiro de validação ponta a ponta `npm run verify:flow` (container `flow-check`, perfil `tools`), executado pelo gateway com o JWT real do login e polling das projeções |
@@ -737,22 +738,33 @@ Se RabbitMQ estiver indisponível, o evento deverá permanecer pendente para nov
 
 ## 8. Injeção de dependências e organização de código
 
-Cada microsserviço deverá seguir uma organização semelhante:
+Os serviços NestJS (Produtos, Auth e Pedidos) seguem esta organização:
 
 ~~~text
 src/
+  main.ts
+  app.module.ts
   modules/
     <modulo>/
       domain/
       application/
-      infrastructure/
+      infrastructure/   # persistência, auth (guard JWT), http, messaging
       presentation/
-  shared/
-    config/
-    http/
-    messaging/
-    auth/
+      <modulo>.module.ts
+  common/             # filtro de erros da seção 5, middleware, Swagger
+    swagger/
+  health/             # GET /health
+  runtime/            # testes da aplicação montada (Swagger, adaptador HTTP, gateway)
 ~~~
+
+Não existe pasta `shared/`: o código transversal de cada serviço fica em
+`common/`, e a configuração vem diretamente do ConfigService. Os adaptadores de
+autenticação, mensageria e HTTP ficam em `infrastructure/` do módulo que os
+utiliza. Nenhum código é compartilhado entre serviços.
+
+Estoque (Java) usa os mesmos papéis como pacotes em
+`br.com.delivery.inventory`: `domain`, `application`, `presentation` e
+`infrastructure` (`auth`, `config`, `messaging`, `persistence`).
 
 Responsabilidades:
 
@@ -818,8 +830,11 @@ Na implementação atual, o arquivo
 - "orders-db"
 - "rabbitmq"
 
-Esse é o conjunto completo de containers do sistema. O container auxiliar
-"inventory-check" só é iniciado pelo perfil `tools`.
+Esse é o conjunto completo de containers do sistema. Os containers auxiliares
+"inventory-check" (`npm run verify:flow:inventory`) e "flow-check"
+(`npm run verify:flow`) só são iniciados pelo perfil `tools`. O RabbitMQ monta
+`infra/rabbitmq/` (seção 7.4) e o gateway monta `infra/nginx/nginx.conf`
+(seção 11).
 
 Requisitos:
 
@@ -1191,26 +1206,38 @@ O trabalho deverá ser considerado inválido se qualquer microsserviço ficar ab
 ## 14. Critérios de aceite
 
 - [x] Todos os seis bancos PostgreSQL estão definidos no Compose.
-- [ ] Nginx encaminha somente as rotas externas.
-- [ ] Rotas "/internal/" não estão expostas pelo Nginx.
+- [x] Nginx encaminha somente as rotas externas.
+- [x] Rotas "/internal/" não estão expostas pelo Nginx.
 - [x] Auth cadastra usuários e emite JWT.
-- [ ] Todos os serviços protegidos validam JWT.
-- [ ] Produtos possui banco de escrita e banco de leitura.
-- [ ] Estoque possui banco de escrita e banco de leitura.
-- [ ] Produtos e Estoque utilizam RabbitMQ para projeções.
-- [ ] Outbox é gravada na mesma transação dos comandos.
+- [x] Todos os serviços protegidos validam JWT.
+- [x] Produtos possui banco de escrita e banco de leitura.
+- [x] Estoque possui banco de escrita e banco de leitura.
+- [x] Produtos e Estoque utilizam RabbitMQ para projeções.
+- [x] Outbox é gravada na mesma transação dos comandos.
 - [x] Pedidos consulta Produtos via REST.
 - [x] Pedidos debita Estoque via REST.
 - [x] Pedidos possui rota de conclusão.
 - [x] Conclusão só pode ser feita pelo proprietário.
 - [x] Conclusão repetida é idempotente.
-- [ ] Health checks estão configurados.
-- [ ] Todas as rotas do serviço de Produtos aparecem corretamente no Swagger.
-- [ ] `/docs` e `/docs-json` funcionam quando Swagger está habilitado.
-- [ ] Swagger fica desabilitado em produção.
-- [ ] Todos os microsserviços possuem testes unitários.
-- [ ] Cada microsserviço possui pelo menos 50% de cobertura.
-- [ ] Nenhum segredo real está versionado.
+- [x] Health checks estão configurados.
+- [x] Todas as rotas do serviço de Produtos aparecem corretamente no Swagger.
+- [x] `/docs` e `/docs-json` funcionam quando Swagger está habilitado.
+- [x] Swagger fica desabilitado em produção.
+- [x] Todos os microsserviços possuem testes unitários.
+- [x] Cada microsserviço possui pelo menos 50% de cobertura.
+- [x] Nenhum segredo real está versionado.
+
+Verificação realizada em 2026-09-23 (versão 2.8), com `npm run infra:up`:
+
+| Critério | Evidência |
+|---|---|
+| Rotas do gateway e bloqueio de `/internal/` | `npm run verify:flow` e `npm run verify:flow:inventory` (404 `ROUTE_NOT_FOUND`, 405 em `/api/v1/products/:id`) |
+| JWT nos serviços protegidos | 401 sem JWT nos roteiros e nas suítes de Produtos, Estoque e Pedidos |
+| CQRS, RabbitMQ e Outbox | projeções convergindo em `verify:flow`; Outbox e eventos em `verify:flow:inventory` e nas suítes |
+| Health checks | todos os 12 containers `healthy` no Compose |
+| Swagger | `verify:swagger:{products,auth,orders,inventory}`, HTTP 200 em `/docs` e `/docs-json`, bloqueio com `NODE_ENV=production` coberto por testes |
+| Testes e cobertura (branches) | Produtos 85,7%, Auth 97,7%, Pedidos 98,9%, Estoque 95,6% (JaCoCo, `mvn verify` com Testcontainers) |
+| Segredos | somente `.env.example` versionado, com valores de desenvolvimento |
 
 ## 15. Assumptions
 
@@ -1224,11 +1251,12 @@ O trabalho deverá ser considerado inválido se qualquer microsserviço ficar ab
 - Produtos e Estoque utilizam CQRS.
 - A consistência dos bancos de leitura é eventual.
 - Rotas internas são protegidas por "X-Internal-Token".
-- A implementação é incremental; nesta etapa Auth, Produtos, Estoque e Pedidos estão ativos.
+- Os quatro microsserviços (Auth, Produtos, Estoque e Pedidos) estão implementados; os critérios da seção 14 descrevem o estado verificado.
 
-## 16. Estado da implementação inicial
+## 16. Histórico da primeira fatia (Produtos)
 
-A branch "funcionalidade/produtos-inicial" entrega a primeira fatia vertical
+Registro histórico. O estado atual do sistema está nas seções 14 e 17 a 19.
+A branch "funcionalidade/produtos-inicial" entregou a primeira fatia vertical
 do sistema:
 
 - "services/products" contém o microsserviço NestJS de Produtos.
@@ -1236,8 +1264,9 @@ do sistema:
 - "products-read-db" mantém a projeção usada pelas consultas.
 - RabbitMQ publica "product.created" e "product.updated" no exchange
   "delivery.events".
-- "infra/nginx/nginx.conf" expõe somente as rotas públicas de Produtos e
-  bloqueia "/internal/".
+- "infra/nginx/nginx.conf" expunha somente as rotas públicas de Produtos e
+  bloqueava "/internal/"; hoje encaminha as rotas dos quatro serviços
+  (seção 11).
 - As rotas externas exigem JWT válido em qualquer ambiente; "X-Internal-Token"
   continua obrigatório para a rota interna.
 - Swagger/OpenAPI documenta todas as rotas públicas, internas e de health; a
@@ -1247,14 +1276,15 @@ do sistema:
 - A cobertura do serviço de Produtos possui limiar de 50% para branches,
   functions, lines e statements, com suíte unitária independente.
 
-Pedidos foi adicionado na versão 2.4 (seção 19) sem alterar os limites de
-dados, rotas internas e contratos definidos nesta especificação.
+Estoque (seção 17), Auth (seção 18) e Pedidos (seção 19) foram adicionados
+depois, sem alterar os limites de dados, as rotas internas e os contratos
+definidos nesta especificação.
 
 
 ## 17. Implementação de Estoque (versão 2.0)
 
 `services/inventory` é uma aplicação Java 21 / Spring Boot independente,
-construída com Maven. Produtos continua em NestJS. Controllers, casos de uso,
+construída com Maven. Produtos, Auth e Pedidos são NestJS. Controllers, casos de uso,
 interfaces e adaptadores Spring JDBC são injetados pelo construtor.
 `StockRules` concentra as regras de quantidade, saldo e repetição de pedidos.
 Há dois DataSources e dois gerenciadores de transação, `writeTransactionManager`
@@ -1305,7 +1335,7 @@ O Compose `delivery` adiciona Estoque e dois PostgreSQL privados com volumes
 O Nginx encaminha `/api/v1/inventory` e bloqueia `/internal/`.
 Swagger interno usa `/docs` e `/docs-json`; pelo gateway, fica em
 `/inventory/docs` e `/inventory/docs-json`. Só é habilitado com
-`SWAGGER_ENABLED=true` fora de produção. `NODE_ENV=production` e os perfis Spring `prod`/`production` desabilitam Swagger mesmo com a flag ativa. Os recursos estáticos locais são encaminhados por `/inventory/swagger-ui/`. Produtos mantém seus endpoints anteriores.
+`SWAGGER_ENABLED=true` fora de produção. `NODE_ENV=production` e os perfis Spring `prod`/`production` desabilitam Swagger mesmo com a flag ativa. Os recursos estáticos locais são encaminhados por `/inventory/swagger-ui/`.
 
 Configuração: `INVENTORY_PORT`, `INVENTORY_WRITE_DB_{HOST,PORT,NAME,USER,PASSWORD}`,
 `INVENTORY_READ_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `RABBITMQ_INVENTORY_QUEUE`,
@@ -1354,6 +1384,10 @@ serviço mantém o saldo e reconhece o pedido já processado.
 - `mvn -f services/inventory/pom.xml verify`: unitários + integração PostgreSQL
   com Testcontainers + cobertura JaCoCo. Exige Docker; os testes não são omitidos
   silenciosamente quando ele está indisponível.
+- Sem JDK no host, o mesmo `verify` pode ser executado em container:
+  `docker run --rm -e TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD":/work -w /work maven:3.9-eclipse-temurin-21 mvn -B -f services/inventory/pom.xml verify`.
+  O override é necessário no Docker Desktop, para que o Testcontainers alcance
+  as portas dos containers de teste.
 - `mvn -f services/inventory/pom.xml -DskipTests package`: gera o JAR executável.
 - Relatório: `services/inventory/target/site/jacoco/index.html`.
 - O Dockerfile compila com Maven/JDK 21 e executa somente Java no estágio final.
