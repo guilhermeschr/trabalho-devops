@@ -8,13 +8,14 @@ const gateway = (process.env.GATEWAY_URL ?? 'http://localhost:8080').replace(
 );
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function api(method, path, body, token) {
+async function api(method, path, body, token, headers = {}) {
   const response = await fetch(gateway + path, {
     method,
     headers: {
       'Content-Type': 'application/json',
       'X-Request-Id': `verify-flow-${randomUUID()}`,
       ...(token ? { Authorization: 'Bearer ' + token } : {}),
+      ...headers,
     },
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -25,7 +26,7 @@ async function api(method, path, body, token) {
   } catch {
     value = text;
   }
-  return { status: response.status, body: value };
+  return { status: response.status, headers: response.headers, body: value };
 }
 
 async function poll(description, check) {
@@ -40,7 +41,47 @@ async function poll(description, check) {
   );
 }
 
+// Comportamentos próprios do Nginx (seção 11 da especificação).
+async function verifyGateway() {
+  const requestId = `verify-flow-gateway-${randomUUID()}`;
+  const traced = await api('POST', '/api/v1/orders', {}, undefined, {
+    'X-Request-Id': requestId,
+  });
+  assert.equal(traced.status, 401, JSON.stringify(traced.body));
+  assert.equal(traced.headers.get('x-request-id'), requestId);
+  assert.equal(traced.body.traceId, requestId);
+
+  const invalidId = 'id "invalido"';
+  const generated = await api('POST', '/api/v1/orders', {}, undefined, {
+    'X-Request-Id': invalidId,
+  });
+  const generatedId = generated.headers.get('x-request-id');
+  assert.ok(generatedId, 'X-Request-Id não gerado pelo gateway');
+  assert.notEqual(generatedId, invalidId);
+  assert.equal(generated.body.traceId, generatedId);
+
+  const productPath = '/api/v1/products/' + randomUUID();
+  const notAllowed = await api('GET', productPath);
+  assert.equal(notAllowed.status, 405, JSON.stringify(notAllowed.body));
+  assert.equal(notAllowed.body.code, 'METHOD_NOT_ALLOWED');
+  assert.equal(notAllowed.body.path, productPath);
+  assert.equal(notAllowed.headers.get('allow'), 'PUT');
+
+  const internal = await api(
+    'GET',
+    '/internal/v1/products/' + randomUUID(),
+    undefined,
+    undefined,
+    { 'X-Internal-Token': 'token-externo' },
+  );
+  assert.equal(internal.status, 404, JSON.stringify(internal.body));
+  assert.equal(internal.body.code, 'ROUTE_NOT_FOUND');
+  assert.equal(internal.body.traceId, internal.headers.get('x-request-id'));
+}
+
 async function main() {
+  await verifyGateway();
+
   const email = `fluxo-${randomUUID()}@example.com`;
   const password = 'SenhaSegura123';
 
@@ -163,7 +204,7 @@ async function main() {
   await projectedStock(18);
 
   console.log(
-    'Fluxo validado pelo gateway: cadastro, login com JWT real, criação de produto, adição de estoque, projeções de produto e estoque, criação, consulta e conclusão idempotente do pedido e débito refletido na projeção.',
+    'Fluxo validado pelo gateway: X-Request-Id repassado e gerado, 405 em /api/v1/products/:id, 404 em /internal/, cadastro, login com JWT real, criação de produto, adição de estoque, projeções de produto e estoque, criação, consulta e conclusão idempotente do pedido e débito refletido na projeção.',
   );
 }
 

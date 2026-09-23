@@ -1,7 +1,7 @@
 # Especificação do Sistema de Delivery com Microsserviços
 
 **Status:** especificação de referência para implementação
-**Versão:** 2.5
+**Versão:** 2.6
 **Última atualização:** 2026-09-23
 **Idioma:** português
 **Objetivo:** orientar a construção, execução e validação de um sistema simples de delivery com foco em DevOps.
@@ -10,6 +10,7 @@
 
 | Versão | Data | Alteração |
 |---|---|---|
+| 2.6 | 2026-09-23 | Nginx repassa `X-Request-Id` válido do cliente e gera um quando ausente ou inválido, descarta `X-Internal-Token` externo, aceita somente `PUT` em `/api/v1/products/:id` e retorna erros JSON (404 `ROUTE_NOT_FOUND`, 405 `METHOD_NOT_ALLOWED`, 503 `SERVICE_UNAVAILABLE`); `verify:flow` valida esse comportamento |
 | 2.5 | 2026-09-23 | Adicionado o roteiro de validação ponta a ponta `npm run verify:flow` (container `flow-check`, perfil `tools`), executado pelo gateway com o JWT real do login e polling das projeções |
 | 2.4 | 2026-09-23 | Implementado Pedidos em NestJS com criação, consulta e conclusão, clientes REST de Produtos e Estoque com timeout, banco `orders-db`, Swagger em `/orders/docs`, validação `verify:swagger:orders` e cobertura mínima; definidos `PRODUCT_INACTIVE` (409), o mapeamento de erros das dependências e a retentativa de gravação após o débito |
 | 2.3 | 2026-09-23 | Removido o bypass temporário `AUTH_ENABLED` de Produtos (antiga seção 9.1); JWT obrigatório em todas as rotas públicas, em qualquer ambiente |
@@ -885,6 +886,45 @@ O Nginx deverá:
 - Não publicar bancos ou RabbitMQ.
 - Retornar erro controlado quando o serviço de destino estiver indisponível.
 
+Implementação em `infra/nginx/nginx.conf`:
+
+- `X-Request-Id` do cliente é repassado quando casa com
+  `^[A-Za-z0-9._:-]{1,128}$`. Quando ausente ou fora desse formato, o gateway
+  usa `$request_id` (32 caracteres hexadecimais). O valor efetivo é enviado ao
+  serviço, devolvido no cabeçalho `X-Request-Id` da resposta (substituindo o
+  do serviço, que é o mesmo) e registrado no log de acesso.
+- `X-Internal-Token` recebido do cliente é descartado: rotas públicas não o
+  utilizam e rotas internas só são chamadas dentro da rede Docker.
+- `/api/v1/products/:id` aceita somente `PUT`; outros métodos retornam 405.
+- Erros gerados pelo próprio Nginx seguem o formato da seção 5. Erros
+  retornados pelos serviços (inclusive 503 `DEPENDENCY_UNAVAILABLE` de
+  Pedidos) são repassados sem alteração, pois não há `proxy_intercept_errors`.
+
+| Situação | HTTP | Código |
+|---|---|---|
+| Rota não mapeada ou prefixo `/internal/` | 404 | `ROUTE_NOT_FOUND` |
+| Método diferente de `PUT` em `/api/v1/products/:id` (com `Allow: PUT`) | 405 | `METHOD_NOT_ALLOWED` |
+| Serviço de destino fora do ar, recusando conexão ou sem resposta (502, 503 ou 504 do upstream) | 503 | `SERVICE_UNAVAILABLE` |
+
+Exemplo:
+
+~~~json
+{
+  "status": 503,
+  "code": "SERVICE_UNAVAILABLE",
+  "message": "Serviço temporariamente indisponível",
+  "path": "/api/v1/orders",
+  "traceId": "req-8f82c4",
+  "timestamp": "2026-09-16T15:35:00Z"
+}
+~~~
+
+No erro do gateway, `timestamp` é gerado pelo Nginx com precisão de segundos,
+e `path` fica vazio quando o caminho contém caracteres fora de
+`[A-Za-z0-9/._~:-]`. O Nginx resolve os nomes dos upstreams na inicialização;
+depois de recriar um serviço, reinicie o `nginx-gateway` caso o IP do container
+tenha mudado.
+
 ### 11.1 Documentação Swagger
 
 O serviço de Produtos deverá disponibilizar, no ambiente local, os endpoints:
@@ -1053,7 +1093,12 @@ do `nginx-gateway` saudável. O mesmo script pode ser executado do host com
 
 Regras do roteiro:
 
-- Todas as chamadas passam pelo gateway; nenhuma rota `/internal/` é usada.
+- Antes do fluxo, o roteiro valida o gateway (seção 11): um `X-Request-Id`
+  válido é devolvido no cabeçalho e no `traceId` do 401 de Pedidos; um valor
+  inválido é substituído por um id gerado; `GET /api/v1/products/:id` retorna
+  405 `METHOD_NOT_ALLOWED` com `Allow: PUT`; `/internal/` retorna 404
+  `ROUTE_NOT_FOUND` mesmo com `X-Internal-Token`.
+- Todas as chamadas passam pelo gateway; nenhuma rota `/internal/` chega a um serviço.
 - O JWT utilizado é o `accessToken` emitido pelo login do usuário recém
   cadastrado, com e-mail único por execução.
 - Cada requisição envia um `X-Request-Id` próprio.

@@ -60,6 +60,14 @@ A consulta por ID existe somente em `/internal/v1/products/:id`, acessível
 dentro da rede Docker com `X-Internal-Token`; o Nginx retorna 404 para
 `/internal/`.
 
+O gateway repassa o `X-Request-Id` do cliente (letras, números e `._:-`, até
+128 caracteres) ou gera um novo e o devolve na resposta. Ele nunca repassa
+`X-Internal-Token` recebido de fora. Erros gerados pelo próprio Nginx seguem o
+formato JSON da especificação: 404 `ROUTE_NOT_FOUND` para rotas inexistentes e
+`/internal/`, 405 `METHOD_NOT_ALLOWED` para métodos diferentes de `PUT` em
+`/api/v1/products/:id` e 503 `SERVICE_UNAVAILABLE` quando o serviço de destino
+está fora do ar.
+
 As rotas públicas de Produtos e Estoque sempre exigem `Authorization: Bearer <jwt>`,
 em qualquer ambiente. Obtenha o token pelo login do Auth ou pelo gerador abaixo.
 Em qualquer ambiente real, configure um JWT_SECRET seguro.
@@ -184,7 +192,8 @@ versão anterior; não é necessário excluir volumes para migrar.
 ## Fluxo completo entre os serviços
 
 Com a infraestrutura em execução, o roteiro da seção 12.3 da especificação
-percorre cadastro, login, criação de produto, adição de estoque, consulta das
+valida o comportamento do gateway (`X-Request-Id`, 405 e 404) e percorre
+cadastro, login, criação de produto, adição de estoque, consulta das
 projeções de Produto e Estoque, criação, consulta e conclusão do pedido e a
 repetição da conclusão (idempotência). Todas as chamadas passam pelo gateway
 com o JWT real emitido pelo login, e as projeções são aguardadas com polling.
