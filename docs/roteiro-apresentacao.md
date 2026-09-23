@@ -1,7 +1,7 @@
 # Roteiro de Apresentação do Sistema
 
 Passo a passo para demonstrar o sistema em execução, com testes manuais pelo
-Insomnia (ou equivalente) e verificações automatizadas ponta a ponta. A visão
+Bruno ou Insomnia e verificações automatizadas ponta a ponta. A visão
 geral da arquitetura está em [arquitetura.md](arquitetura.md) e os contratos
 completos na [especificação](especificacao-delivery-microservicos.md).
 
@@ -9,6 +9,7 @@ Material de apoio:
 
 | Arquivo | Uso |
 |---|---|
+| [`docs/bruno/`](bruno/) | Coleção Bruno (formato YAML OpenCollection) com as 35 requisições deste roteiro e asserção do HTTP esperado em cada uma |
 | [`docs/insomnia-delivery.json`](insomnia-delivery.json) | Coleção Insomnia com as 34 requisições deste roteiro, na mesma ordem |
 | [`scripts/demo-manual.sh`](../scripts/demo-manual.sh) | Executa o roteiro manual via `curl`, imprimindo cada resposta e conferindo o HTTP esperado |
 | [`scripts/verify-flow.mjs`](../scripts/verify-flow.mjs) | Teste ponta a ponta com asserções (`npm run verify:flow`) |
@@ -36,6 +37,24 @@ Pontos a mostrar:
   (`0.0.0.0:8080->80`). Bancos e RabbitMQ aparecem apenas com portas internas.
 - `infra/docker/docker-compose.yml`: health checks, `depends_on` com
   `condition: service_healthy` e volumes nomeados dos seis bancos.
+
+### Abrir a coleção no Bruno
+
+1. **Open Collection** → pasta `docs/bruno` (Bruno 3+; formato YAML).
+2. Selecione o ambiente **local** (`baseUrl=http://localhost:8080`).
+3. Execute as pastas na ordem. Os cadastros geram e-mails únicos a cada
+   execução, e login, criação de produto e criação de pedido gravam `token`,
+   `tokenB`, `productId` e `orderId` como variáveis de runtime. As requisições
+   que leem projeções aguardam 1 s antes do envio (consistência eventual).
+4. Cada requisição tem uma asserção com o HTTP esperado, então as pastas 1 a 5
+   podem rodar no **Runner**. A pasta 6 exige parar o Estoque antes (seção 7).
+
+Pela linha de comando, com o [Bruno CLI](https://www.npmjs.com/package/@usebruno/cli):
+
+~~~bash
+cd docs/bruno
+npx @usebruno/cli run "1. Auth" "2. Produtos" "3. Estoque" "4. Pedidos" "5. Gateway Nginx" --env local
+~~~
 
 ### Importar a coleção no Insomnia
 
@@ -172,7 +191,7 @@ dc logs nginx-gateway | grep apresentacao-001
 # ... "POST /api/v1/orders HTTP/1.1" 401 ... request_id=apresentacao-001 upstream=172.28.0.x:3000
 ~~~
 
-## 7. Resiliência (requisição 4.14)
+## 7. Resiliência (Bruno: pasta *6*; Insomnia: 4.14)
 
 ~~~bash
 dc stop inventory-service
@@ -180,8 +199,8 @@ dc stop inventory-service
 
 | Requisição | Esperado | O que destacar |
 |---|---|---|
-| 4.14 `POST /api/v1/orders` (produto ativo) | **503** `DEPENDENCY_UNAVAILABLE`, "Serviço de Estoque indisponível" | Pedidos trata a falha da dependência (timeout 3 s) |
-| 3.2 `GET /api/v1/inventory/:id` | **503** `SERVICE_UNAVAILABLE` | Erro gerado pelo próprio gateway |
+| 6.1 / 4.14 `POST /api/v1/orders` (produto ativo) | **503** `DEPENDENCY_UNAVAILABLE`, "Serviço de Estoque indisponível" | Pedidos trata a falha da dependência (timeout 3 s) |
+| 6.2 / 3.2 `GET /api/v1/inventory/:id` | **503** `SERVICE_UNAVAILABLE` | Erro gerado pelo próprio gateway (pode levar até ~40 s, enquanto o Nginx aguarda o timeout de conexão) |
 
 ~~~bash
 dc logs orders-service | grep "Dependência indisponível"

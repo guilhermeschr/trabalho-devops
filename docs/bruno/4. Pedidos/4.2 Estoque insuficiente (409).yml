@@ -1,0 +1,32 @@
+info:
+  name: "4.2 Estoque insuficiente (409)"
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/v1/orders"
+  body:
+    type: json
+    data: |-
+      {
+        "productId": "{{productId}}",
+        "quantity": 1000
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "409"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: "`INSUFFICIENT_STOCK`."

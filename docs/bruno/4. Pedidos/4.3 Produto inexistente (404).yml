@@ -1,0 +1,32 @@
+info:
+  name: "4.3 Produto inexistente (404)"
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/v1/orders"
+  body:
+    type: json
+    data: |-
+      {
+        "productId": "{{produtoInexistente}}",
+        "quantity": 1
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "404"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: "`PRODUCT_NOT_FOUND`."

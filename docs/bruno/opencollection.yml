@@ -1,0 +1,31 @@
+opencollection: 1.0.0
+
+info:
+  name: delivery-microservicos
+
+docs:
+  content: |-
+    # Delivery com microsserviços
+
+    Roteiro de apresentação: `docs/roteiro-apresentacao.md`. Todas as chamadas
+    passam pelo gateway Nginx (`{{baseUrl}}`, padrão http://localhost:8080).
+
+    ## Como usar
+
+    1. Suba o sistema (`npm run infra:up`) e selecione o ambiente **local**.
+    2. Execute as pastas na ordem. As requisições de cadastro geram e-mails
+       únicos; login, criação de produto e criação de pedido gravam `token`,
+       `token_b`, `productId` e `orderId` como variáveis de runtime.
+    3. Cada requisição possui uma asserção com o HTTP esperado, então a pasta ou a
+       collection inteira pode ser executada pelo Runner.
+
+    A pasta **6. Resiliência** exige parar o Estoque antes
+    (`docker compose --env-file .env -f infra/docker/docker-compose.yml stop inventory-service`)
+    e fica fora de uma execução completa normal.
+  type: text/markdown
+bundled: false
+extensions:
+  bruno:
+    ignore:
+      - node_modules
+      - .git

@@ -1,0 +1,29 @@
+info:
+  name: "2.6 Filtrar por id (200)"
+  type: http
+  seq: 6
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/v1/products?id={{productId}}"
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        await bru.sleep(1000); // aguarda a projeção (consistência eventual)
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: "Lê a projeção; logo após a criação pode levar alguns instantes para aparecer."

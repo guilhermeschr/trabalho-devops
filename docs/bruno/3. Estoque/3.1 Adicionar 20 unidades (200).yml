@@ -1,0 +1,30 @@
+info:
+  name: "3.1 Adicionar 20 unidades (200)"
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/v1/inventory"
+  body:
+    type: json
+    data: |-
+      {
+        "productId": "{{productId}}",
+        "quantity": 20
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

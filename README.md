@@ -7,8 +7,8 @@ Sistema de delivery com microsserviços. Auth, Produtos, Estoque e Pedidos estã
 - [Arquitetura](docs/arquitetura.md): visão geral resumida do sistema (serviços,
   bancos, autenticação, CQRS, logs e storage).
 - [Roteiro de apresentação](docs/roteiro-apresentacao.md): passo a passo de
-  testes manuais com a coleção Insomnia (`docs/insomnia-delivery.json`), o
-  script `scripts/demo-manual.sh` e as verificações ponta a ponta.
+  testes manuais com as coleções Bruno (`docs/bruno/`) e Insomnia
+  (`docs/insomnia-delivery.json`), o script `scripts/demo-manual.sh` e as verificações ponta a ponta.
 - [Especificação](docs/especificacao-delivery-microservicos.md): fonte de
   verdade dos contratos, fluxos e critérios de aceite.
 

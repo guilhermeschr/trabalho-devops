@@ -1,0 +1,36 @@
+info:
+  name: "4.12 Pedido de produto inativo (409)"
+  type: http
+  seq: 12
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/v1/orders"
+  body:
+    type: json
+    data: |-
+      {
+        "productId": "{{productId}}",
+        "quantity": 1
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        await bru.sleep(1000); // aguarda a projeção (consistência eventual)
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "409"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: "`PRODUCT_INACTIVE`, sem débito. Se retornar 201, a projeção ainda não recebeu a desativação: repita."

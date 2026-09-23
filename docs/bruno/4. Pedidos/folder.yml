@@ -1,0 +1,8 @@
+info:
+  name: "4. Pedidos"
+  type: folder
+  seq: 4
+
+docs:
+  content: "Pedidos consulta Produtos e debita Estoque por REST interno com X-Internal-Token."
+  type: text/markdown

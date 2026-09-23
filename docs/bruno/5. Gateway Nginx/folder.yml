@@ -1,0 +1,8 @@
+info:
+  name: "5. Gateway Nginx"
+  type: folder
+  seq: 5
+
+docs:
+  content: "Comportamentos do próprio gateway: bloqueio de /internal/, 405, 404 e X-Request-Id."
+  type: text/markdown

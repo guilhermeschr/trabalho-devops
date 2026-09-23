@@ -1,0 +1,8 @@
+info:
+  name: "6. Resiliência"
+  type: folder
+  seq: 6
+
+docs:
+  content: "Antes: docker compose --env-file .env -f infra/docker/docker-compose.yml stop inventory-service. Depois: start inventory-service."
+  type: text/markdown

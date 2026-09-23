@@ -1,0 +1,32 @@
+info:
+  name: "4.13 Reativar produto (200)"
+  type: http
+  seq: 13
+
+http:
+  method: PUT
+  url: "{{baseUrl}}/api/v1/products/{{productId}}"
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Hambúrguer artesanal especial",
+        "description": "Hambúrguer com queijo, bacon e molho especial",
+        "price": 34.9,
+        "active": true
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

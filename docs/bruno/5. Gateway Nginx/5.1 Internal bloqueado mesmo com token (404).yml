@@ -1,0 +1,25 @@
+info:
+  name: "5.1 Internal bloqueado mesmo com token (404)"
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}/internal/v1/products/{{productId}}"
+  headers:
+    - name: X-Internal-Token
+      value: "token-qualquer"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "404"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: "`ROUTE_NOT_FOUND`; o gateway descarta X-Internal-Token externo."
