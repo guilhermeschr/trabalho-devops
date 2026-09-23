@@ -9,8 +9,8 @@ COPY services/orders/package.json services/orders/package.json
 RUN npm ci
 
 COPY tsconfig.base.json ./
-COPY services/products services/products
-RUN npm run build:products
+COPY services/orders services/orders
+RUN npm run build:orders
 
 FROM node:24-alpine AS runtime
 
@@ -23,8 +23,8 @@ COPY services/auth/package.json services/auth/package.json
 COPY services/orders/package.json services/orders/package.json
 RUN npm ci --omit=dev
 
-COPY --from=build /app/services/products/dist services/products/dist
+COPY --from=build /app/services/orders/dist services/orders/dist
 
 USER node
 EXPOSE 3000
-CMD ["node", "services/products/dist/main.js"]
+CMD ["node", "services/orders/dist/main.js"]

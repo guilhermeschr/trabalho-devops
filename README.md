@@ -87,8 +87,7 @@ docker compose --env-file .env -f infra/docker/docker-compose.yml logs -f produc
 ~~~
 
 A implementação contém Auth, com banco próprio, e Produtos e Estoque, cada um
-com dois bancos CQRS, RabbitMQ e o gateway Nginx. Pedidos será adicionado
-posteriormente.
+com dois bancos CQRS, Pedidos com "orders-db", RabbitMQ e o gateway Nginx.
 
 ## Auth — cadastro e login
 
@@ -119,6 +118,36 @@ Swagger de Auth: http://localhost:8080/auth/docs.
 npm run test:auth
 npm run build:auth
 npm run verify:swagger:auth
+~~~
+
+## Pedidos — criação, consulta e conclusão
+
+Todas as rotas exigem JWT; o `userId` vem do claim `sub`.
+
+- `POST /api/v1/orders`: `{ "productId": "<uuid>", "quantity": 2 }`. Consulta
+  o produto em Produtos, debita o estoque em Estoque (idempotente por
+  `orderId`) e grava o pedido com o preço consultado. Retorna 201 com status
+  `CREATED`; produto inexistente 404, produto inativo ou estoque insuficiente
+  409 e Produtos/Estoque indisponível 503.
+- `GET /api/v1/orders/:id`: somente o proprietário (outro usuário recebe 403).
+- `POST /api/v1/orders/:id/complete`: `CREATED → COMPLETED`; repetir retorna
+  200 sem nova alteração.
+
+~~~bash
+ORDER=$(curl -s http://localhost:8080/api/v1/orders -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' -d '{"productId":"<product-id>","quantity":2}')
+ORDER_ID=$(echo "$ORDER" | node -pe 'JSON.parse(require("fs").readFileSync(0)).id')
+curl -s -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/orders/$ORDER_ID
+curl -s -X POST -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/orders/$ORDER_ID/complete
+~~~
+
+O timeout das chamadas a Produtos e Estoque é `ORDERS_HTTP_TIMEOUT_MS`
+(padrão 3000). Swagger de Pedidos: http://localhost:8080/orders/docs.
+
+~~~bash
+npm run test:orders
+npm run build:orders
+npm run verify:swagger:orders
 ~~~
 
 

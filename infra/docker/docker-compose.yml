@@ -199,6 +199,62 @@ services:
       timeout: 5s
       retries: 10
 
+  orders-service:
+    build:
+      context: ../..
+      dockerfile: services/orders/Dockerfile
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      ORDERS_PORT: 3000
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-development}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-change-me-internal-development}
+      ORDERS_DB_HOST: orders-db
+      ORDERS_DB_PORT: 5432
+      ORDERS_DB_NAME: orders
+      ORDERS_DB_USER: orders
+      ORDERS_DB_PASSWORD: orders
+      PRODUCTS_SERVICE_URL: http://products-service:3000
+      INVENTORY_SERVICE_URL: http://inventory-service:3000
+      ORDERS_HTTP_TIMEOUT_MS: ${ORDERS_HTTP_TIMEOUT_MS:-3000}
+    depends_on:
+      orders-db:
+        condition: service_healthy
+      products-service:
+        condition: service_healthy
+      inventory-service:
+        condition: service_healthy
+    networks:
+      - delivery-private
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  orders-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: orders
+      POSTGRES_USER: orders
+      POSTGRES_PASSWORD: orders
+    volumes:
+      - orders-data:/var/lib/postgresql/data
+    networks:
+      - delivery-private
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orders -d orders"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
     environment:
@@ -227,6 +283,8 @@ services:
       products-service:
         condition: service_healthy
       inventory-service:
+        condition: service_healthy
+      orders-service:
         condition: service_healthy
     networks:
       - delivery-private
@@ -270,3 +328,4 @@ volumes:
   rabbitmq-data:
   inventory-write-data:
   inventory-read-data:
+  orders-data:
