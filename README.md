@@ -60,8 +60,9 @@ A consulta por ID existe somente em `/internal/v1/products/:id`, acessível
 dentro da rede Docker com `X-Internal-Token`; o Nginx retorna 404 para
 `/internal/`.
 
-O ambiente inicial usa AUTH_ENABLED=false apenas para desenvolvimento local.
-Em qualquer ambiente real, configure AUTH_ENABLED=true e um JWT_SECRET seguro.
+As rotas públicas de Produtos e Estoque sempre exigem `Authorization: Bearer <jwt>`,
+em qualquer ambiente. Obtenha o token pelo login do Auth ou pelo gerador abaixo.
+Em qualquer ambiente real, configure um JWT_SECRET seguro.
 O token de serviço interno deve ser diferente do segredo JWT.
 
 O Swagger é habilitado no ambiente local por `SWAGGER_ENABLED=true`. Em
@@ -127,8 +128,8 @@ npm run verify:swagger:auth
 - `GET /api/v1/inventory/:productId`: consulta o saldo projetado.
 - `POST /internal/v1/inventory/debit`: `{ "orderId": "<uuid>", "productId": "<uuid>", "quantity": 2 }`, somente na rede interna com `X-Internal-Token`.
 
-Rotas públicas sempre exigem `Authorization: Bearer <jwt>`, mesmo quando
-`AUTH_ENABLED=false` para Produtos. Gere um JWT com o script descrito acima.
+Rotas públicas sempre exigem `Authorization: Bearer <jwt>`. Use o token do
+login do Auth ou gere um JWT com o script descrito acima.
 Débitos repetidos do mesmo pedido retornam a resposta original sem descontar
 novamente; reutilizar o pedido com dados diferentes retorna 409.
 

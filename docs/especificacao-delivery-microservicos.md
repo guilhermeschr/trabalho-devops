@@ -1,7 +1,7 @@
 # Especificação do Sistema de Delivery com Microsserviços
 
 **Status:** especificação de referência para implementação
-**Versão:** 2.2
+**Versão:** 2.3
 **Última atualização:** 2026-09-23
 **Idioma:** português
 **Objetivo:** orientar a construção, execução e validação de um sistema simples de delivery com foco em DevOps.
@@ -10,6 +10,7 @@
 
 | Versão | Data | Alteração |
 |---|---|---|
+| 2.3 | 2026-09-23 | Removido o bypass temporário `AUTH_ENABLED` de Produtos (antiga seção 9.1); JWT obrigatório em todas as rotas públicas, em qualquer ambiente |
 | 2.2 | 2026-09-23 | Implementado Auth em NestJS com cadastro, login JWT, banco `auth-db`, Swagger em `/auth/docs`, validação `verify:swagger:auth` e cobertura mínima |
 | 2.1 | 2026-09-23 | Definida a stack NestJS/TypeORM/Jest para Auth e Pedidos, com injeção de dependências por tokens; variáveis de ambiente alinhadas ao padrão real por serviço |
 | 2.0 | 2026-09-18 | Migrado somente Estoque para Java 21 e Spring Boot; Spring JDBC, Flyway, JUnit/JaCoCo; preservados contratos HTTP, eventos e dados existentes |
@@ -738,24 +739,11 @@ O caso de uso deverá receber essa interface por injeção, permitindo substitu�
 - Os microsserviços deverão validar o JWT localmente.
 - A chave JWT deverá vir de variável de ambiente.
 - Senhas deverão ser armazenadas somente como hash.
-- Rotas internas deverão exigir "X-Internal-Token".
+- Rotas internas deverão sempre exigir "X-Internal-Token".
 - O token interno deverá ser diferente do segredo utilizado para JWT.
 - Tokens, senhas e secrets nunca poderão aparecer nos logs.
-
-### 9.1 Exceção temporária da implementação inicial
-
-Enquanto o microsserviço Auth não estiver implementado, o serviço de Produtos
-deverá aceitar a variável "AUTH_ENABLED=false" exclusivamente no Compose local
-inicial. Nesse modo, as rotas externas de Produtos ficam sem a validação JWT
-para permitir a demonstração da fatia vertical.
-
-Quando "AUTH_ENABLED=true" (valor obrigatório para qualquer ambiente
-compartilhado, homologação ou produção), o serviço deverá exigir um JWT válido
-assinado com "JWT_SECRET". O bypass não poderá ser usado para contornar a
-autenticação em produção.
-
-A rota "/internal/v1/products/:id" sempre deverá exigir "X-Internal-Token",
-independentemente de "AUTH_ENABLED".
+- Não há bypass de JWT em nenhum ambiente: rotas externas protegidas sempre
+  exigem um JWT válido assinado com "JWT_SECRET".
 
 ## 10. Docker Compose e configuração
 
@@ -814,7 +802,7 @@ todos os containers é 3000.
 | Comuns | `NODE_ENV`, `SWAGGER_ENABLED`, `JWT_SECRET`, `INTERNAL_SERVICE_TOKEN` |
 | Gateway | `PRODUCTS_PUBLIC_PORT` (porta HTTP publicada pelo Nginx, padrão 8080) |
 | RabbitMQ (Produtos e Estoque) | `RABBITMQ_URL`, `RABBITMQ_EXCHANGE` |
-| Produtos | `PRODUCTS_PORT`, `PRODUCTS_WRITE_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `PRODUCTS_READ_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `RABBITMQ_PRODUCTS_QUEUE`, `AUTH_ENABLED` (temporária, seção 9.1) |
+| Produtos | `PRODUCTS_PORT`, `PRODUCTS_WRITE_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `PRODUCTS_READ_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `RABBITMQ_PRODUCTS_QUEUE` |
 | Estoque | `INVENTORY_PORT`, `INVENTORY_WRITE_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `INVENTORY_READ_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `RABBITMQ_INVENTORY_QUEUE` |
 | Auth | `AUTH_PORT`, `AUTH_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `JWT_EXPIRES_IN` |
 | Pedidos | `ORDERS_PORT`, `ORDERS_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `PRODUCTS_SERVICE_URL`, `INVENTORY_SERVICE_URL`, `ORDERS_HTTP_TIMEOUT_MS` |
@@ -1100,8 +1088,8 @@ do sistema:
   "delivery.events".
 - "infra/nginx/nginx.conf" expõe somente as rotas públicas de Produtos e
   bloqueia "/internal/".
-- "AUTH_ENABLED=false" é usado apenas pelo Compose local enquanto Auth não
-  existe; "X-Internal-Token" continua obrigatório para a rota interna.
+- As rotas externas exigem JWT válido em qualquer ambiente; "X-Internal-Token"
+  continua obrigatório para a rota interna.
 - Swagger/OpenAPI documenta todas as rotas públicas, internas e de health; a
   validação do contrato é executada por "npm run verify:swagger:products".
 - A consulta pública de produtos aceita os filtros opcionais `id` exato e
@@ -1139,8 +1127,8 @@ e `readTransactionManager`. Migrações Flyway são executadas antes dos reposit
 - Repetição do mesmo `orderId`, produto e quantidade retorna a resposta original,
   sem nova movimentação ou evento. Mesmo pedido com dados diferentes retorna
   409 (`IDEMPOTENCY_CONFLICT`).
-- JWT é obrigatório nas rotas públicas de Estoque, inclusive no ambiente local.
-  `AUTH_ENABLED=false` continua restrito a Produtos; use o gerador de JWT do projeto.
+- JWT é obrigatório nas rotas públicas de Estoque, inclusive no ambiente local;
+  use o login do Auth ou o gerador de JWT do projeto.
 - O cadastro de estoque recebe o UUID do produto sem consultar outro banco ou
   serviço; validação da existência do produto não faz parte deste contrato.
 
