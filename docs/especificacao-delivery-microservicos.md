@@ -1,7 +1,7 @@
 # Especificação do Sistema de Delivery com Microsserviços
 
 **Status:** especificação de referência para implementação
-**Versão:** 2.6
+**Versão:** 2.7
 **Última atualização:** 2026-09-23
 **Idioma:** português
 **Objetivo:** orientar a construção, execução e validação de um sistema simples de delivery com foco em DevOps.
@@ -10,6 +10,7 @@
 
 | Versão | Data | Alteração |
 |---|---|---|
+| 2.7 | 2026-09-23 | RabbitMQ passa a ter um usuário por serviço (`products` e `inventory`), com permissões restritas ao exchange `delivery.events` e às filas do próprio serviço, importados de `infra/rabbitmq/definitions.json` a cada inicialização |
 | 2.6 | 2026-09-23 | Nginx repassa `X-Request-Id` válido do cliente e gera um quando ausente ou inválido, descarta `X-Internal-Token` externo, aceita somente `PUT` em `/api/v1/products/:id` e retorna erros JSON (404 `ROUTE_NOT_FOUND`, 405 `METHOD_NOT_ALLOWED`, 503 `SERVICE_UNAVAILABLE`); `verify:flow` valida esse comportamento |
 | 2.5 | 2026-09-23 | Adicionado o roteiro de validação ponta a ponta `npm run verify:flow` (container `flow-check`, perfil `tools`), executado pelo gateway com o JWT real do login e polling das projeções |
 | 2.4 | 2026-09-23 | Implementado Pedidos em NestJS com criação, consulta e conclusão, clientes REST de Produtos e Estoque com timeout, banco `orders-db`, Swagger em `/orders/docs`, validação `verify:swagger:orders` e cobertura mínima; definidos `PRODUCT_INACTIVE` (409), o mapeamento de erros das dependências e a retentativa de gravação após o débito |
@@ -707,6 +708,19 @@ Envelope padrão:
 - Reprocessar mensagens não confirmadas.
 - Confirmar a mensagem somente após atualizar o banco de leitura.
 - Registrar "eventId" processado para garantir idempotência.
+- Cada serviço conecta com usuário próprio. As permissões de configure, write
+  e read ficam restritas ao exchange e às filas do serviço:
+
+| Usuário | Serviço | Permissões (vhost `/`) |
+|---|---|---|
+| `products` | "products-service" | `^(delivery\.events\|products\..*)$` |
+| `inventory` | "inventory-service" e "inventory-check" | `^(delivery\.events\|inventory\..*)$` |
+
+Usuários, vhost e permissões ficam em `infra/rabbitmq/definitions.json`
+(senhas em hash SHA-256 do RabbitMQ) e são importados a cada inicialização por
+`infra/rabbitmq/20-definitions.conf`. Isso também vale para um volume
+`rabbitmq-data` já existente. Não há usuário padrão nem usuário administrador,
+e a interface de gerenciamento não é publicada.
 
 ### 7.5 Outbox transacional
 
@@ -849,6 +863,10 @@ Regras:
   `s` é aceito por compatibilidade (`3600s`). O valor numérico é retornado em
   `expiresIn` no login.
 - `INTERNAL_SERVICE_TOKEN` deverá ser diferente de `JWT_SECRET`.
+- `RABBITMQ_URL` contém o usuário do próprio serviço (seção 7.4):
+  `amqp://products:products@rabbitmq:5672` em Produtos e
+  `amqp://inventory:inventory@rabbitmq:5672` em Estoque. São credenciais de
+  desenvolvimento local.
 - `PRODUCTS_SERVICE_URL` e `INVENTORY_SERVICE_URL` usam os nomes dos containers
   na rede Docker (`http://products-service:3000` e
   `http://inventory-service:3000`).
@@ -1291,8 +1309,9 @@ Swagger interno usa `/docs` e `/docs-json`; pelo gateway, fica em
 
 Configuração: `INVENTORY_PORT`, `INVENTORY_WRITE_DB_{HOST,PORT,NAME,USER,PASSWORD}`,
 `INVENTORY_READ_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `RABBITMQ_INVENTORY_QUEUE`,
-`RABBITMQ_URL`, `RABBITMQ_EXCHANGE`, `JWT_SECRET`, `INTERNAL_SERVICE_TOKEN`
-e `SWAGGER_ENABLED`. Exemplos locais ficam em `.env.example`.
+`RABBITMQ_URL` (usuário `inventory`, seção 7.4), `RABBITMQ_EXCHANGE`,
+`JWT_SECRET`, `INTERNAL_SERVICE_TOKEN` e `SWAGGER_ENABLED`. Exemplos locais
+ficam em `.env.example`.
 
 Validação:
 

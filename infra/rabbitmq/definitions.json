@@ -1,0 +1,33 @@
+{
+  "users": [
+    {
+      "name": "products",
+      "password_hash": "tBfqQe4slZO27rAh57i6Y5oYrmQNv85uOAkezgtFaE+9gSh0",
+      "hashing_algorithm": "rabbit_password_hashing_sha256",
+      "tags": []
+    },
+    {
+      "name": "inventory",
+      "password_hash": "JWkZlZnJQBrpidgytEONWr5rkIMmX5IrWl90lP6pVZFLbf6s",
+      "hashing_algorithm": "rabbit_password_hashing_sha256",
+      "tags": []
+    }
+  ],
+  "vhosts": [{ "name": "/" }],
+  "permissions": [
+    {
+      "user": "products",
+      "vhost": "/",
+      "configure": "^(delivery\\.events|products\\..*)$",
+      "write": "^(delivery\\.events|products\\..*)$",
+      "read": "^(delivery\\.events|products\\..*)$"
+    },
+    {
+      "user": "inventory",
+      "vhost": "/",
+      "configure": "^(delivery\\.events|inventory\\..*)$",
+      "write": "^(delivery\\.events|inventory\\..*)$",
+      "read": "^(delivery\\.events|inventory\\..*)$"
+    }
+  ]
+}

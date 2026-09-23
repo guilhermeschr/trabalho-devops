@@ -148,7 +148,7 @@ services:
       INVENTORY_READ_DB_NAME: inventory_read
       INVENTORY_READ_DB_USER: inventory
       INVENTORY_READ_DB_PASSWORD: inventory
-      RABBITMQ_URL: amqp://products:products@rabbitmq:5672
+      RABBITMQ_URL: amqp://inventory:inventory@rabbitmq:5672
       RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE:-delivery.events}
       RABBITMQ_INVENTORY_QUEUE: ${RABBITMQ_INVENTORY_QUEUE:-inventory.read.projector}
     depends_on:
@@ -257,12 +257,10 @@ services:
 
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
-    environment:
-      RABBITMQ_DEFAULT_USER: products
-      RABBITMQ_DEFAULT_PASS: products
-      RABBITMQ_DEFAULT_VHOST: /
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
+      - ../rabbitmq/20-definitions.conf:/etc/rabbitmq/conf.d/20-definitions.conf:ro
+      - ../rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
     networks:
       - delivery-private
     healthcheck:
@@ -307,7 +305,7 @@ services:
       INVENTORY_WRITE_DB_USER: inventory
       INVENTORY_WRITE_DB_PASSWORD: inventory
       INVENTORY_WRITE_DB_NAME: inventory_write
-      RABBITMQ_URL: amqp://products:products@rabbitmq:5672
+      RABBITMQ_URL: amqp://inventory:inventory@rabbitmq:5672
       RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE:-delivery.events}
     depends_on:
       inventory-service:
