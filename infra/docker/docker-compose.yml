@@ -1,5 +1,54 @@
 name: delivery
 services:
+  auth-service:
+    build:
+      context: ../..
+      dockerfile: services/auth/Dockerfile
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      AUTH_PORT: 3000
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-development}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-3600}
+      AUTH_DB_HOST: auth-db
+      AUTH_DB_PORT: 5432
+      AUTH_DB_NAME: auth
+      AUTH_DB_USER: auth
+      AUTH_DB_PASSWORD: auth
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    networks:
+      - delivery-private
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  auth-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: auth
+      POSTGRES_USER: auth
+      POSTGRES_PASSWORD: auth
+    volumes:
+      - auth-data:/var/lib/postgresql/data
+    networks:
+      - delivery-private
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U auth -d auth"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   products-service:
     build:
       context: ../..
@@ -10,7 +59,7 @@ services:
       AUTH_ENABLED: ${AUTH_ENABLED:-false}
       SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
       JWT_SECRET: ${JWT_SECRET:-change-me-in-development}
-      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-3600s}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-3600}
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-change-me-internal-development}
       PRODUCTS_WRITE_DB_HOST: products-write-db
       PRODUCTS_WRITE_DB_PORT: 5432
@@ -88,7 +137,7 @@ services:
       INVENTORY_PORT: 3000
       SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
       JWT_SECRET: ${JWT_SECRET:-change-me-in-development}
-      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-3600s}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-3600}
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-change-me-internal-development}
       INVENTORY_WRITE_DB_HOST: inventory-write-db
       INVENTORY_WRITE_DB_PORT: 5432
@@ -174,6 +223,8 @@ services:
     volumes:
       - ../nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
+      auth-service:
+        condition: service_healthy
       products-service:
         condition: service_healthy
       inventory-service:
@@ -214,6 +265,7 @@ networks:
     driver: bridge
 
 volumes:
+  auth-data:
   products-write-data:
   products-read-data:
   rabbitmq-data:

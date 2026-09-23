@@ -4,7 +4,8 @@
   "private": true,
   "description": "Sistema de delivery com microsserviços",
   "workspaces": [
-    "services/products"
+    "services/products",
+    "services/auth"
   ],
   "scripts": {
     "build:products": "npm --workspace services/products run build",
@@ -12,6 +13,10 @@
     "typecheck": "npm run typecheck --workspaces",
     "test:products": "npm --workspace services/products run test:cov --",
     "verify:swagger:products": "node scripts/verify-products-swagger.mjs",
+    "build:auth": "npm --workspace services/auth run build",
+    "dev:auth": "npm --workspace services/auth run start:dev",
+    "test:auth": "npm --workspace services/auth run test:cov --",
+    "verify:swagger:auth": "node scripts/verify-auth-swagger.mjs",
     "infra:config": "docker compose --env-file .env -f infra/docker/docker-compose.yml config",
     "infra:up": "docker compose --env-file .env -f infra/docker/docker-compose.yml up --build --force-recreate",
     "infra:down": "docker compose --env-file .env -f infra/docker/docker-compose.yml down",

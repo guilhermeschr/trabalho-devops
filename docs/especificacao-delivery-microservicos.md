@@ -1,7 +1,7 @@
 # Especificação do Sistema de Delivery com Microsserviços
 
 **Status:** especificação de referência para implementação
-**Versão:** 2.1
+**Versão:** 2.2
 **Última atualização:** 2026-09-23
 **Idioma:** português
 **Objetivo:** orientar a construção, execução e validação de um sistema simples de delivery com foco em DevOps.
@@ -10,6 +10,7 @@
 
 | Versão | Data | Alteração |
 |---|---|---|
+| 2.2 | 2026-09-23 | Implementado Auth em NestJS com cadastro, login JWT, banco `auth-db`, Swagger em `/auth/docs`, validação `verify:swagger:auth` e cobertura mínima |
 | 2.1 | 2026-09-23 | Definida a stack NestJS/TypeORM/Jest para Auth e Pedidos, com injeção de dependências por tokens; variáveis de ambiente alinhadas ao padrão real por serviço |
 | 2.0 | 2026-09-18 | Migrado somente Estoque para Java 21 e Spring Boot; Spring JDBC, Flyway, JUnit/JaCoCo; preservados contratos HTTP, eventos e dados existentes |
 | 1.9 | 2026-09-18 | Implementado Estoque com CQRS, débito idempotente concorrente, projeção versionada, Outbox, Swagger e infraestrutura; normalizado nome Compose para delivery |
@@ -182,8 +183,12 @@ Regras:
 - O e-mail deverá ser único e normalizado para letras minúsculas.
 - A senha nunca poderá ser retornada.
 - A senha deverá ser armazenada com hash usando bcrypt ou Argon2.
-- Senha com formato inválido deverá retornar 400.
-- E-mail já cadastrado deverá retornar 409.
+- Senha com formato inválido deverá retornar 400. A senha deverá ser texto com
+  8 a 72 caracteres; o limite superior corresponde ao máximo processado pelo
+  bcrypt.
+- Nome deverá ter de 1 a 120 caracteres após remover espaços nas extremidades.
+- Campos desconhecidos no corpo deverão retornar 400.
+- E-mail já cadastrado deverá retornar 409 com código `EMAIL_ALREADY_REGISTERED`.
 
 ### 3.2 Login
 
@@ -213,7 +218,9 @@ POST /api/v1/auth/login
 }
 ~~~
 
-Credenciais inválidas deverão retornar 401.
+Credenciais inválidas deverão retornar 401 com código `INVALID_CREDENTIALS`,
+sem diferenciar e-mail inexistente de senha incorreta. O e-mail do login é
+normalizado para minúsculas antes da consulta.
 
 ### 3.3 Criar produto
 
@@ -756,6 +763,8 @@ Na implementação atual, o arquivo
 `infra/docker/docker-compose.yml` contém:
 
 - "nginx-gateway"
+- "auth-service"
+- "auth-db"
 - "products-service"
 - "products-write-db"
 - "products-read-db"
@@ -764,8 +773,7 @@ Na implementação atual, o arquivo
 - "inventory-read-db"
 - "rabbitmq"
 
-Auth, Pedidos e os demais bancos serão adicionados em etapas
-posteriores. Na versão completa do sistema, o Compose deverá conter:
+Pedidos e "orders-db" serão adicionados em etapa posterior. Na versão completa do sistema, o Compose deverá conter:
 
 - "nginx-gateway"
 - "auth-service"
@@ -792,6 +800,10 @@ Requisitos:
   Nginx, por padrão 8080.
 - O serviço de Produtos deverá executar as migrações TypeORM de escrita e
   leitura antes de atender as rotas.
+- O serviço de Auth deverá executar a migração TypeORM de "auth-db" antes de
+  atender as rotas.
+- Todos os Dockerfiles que executam `npm ci` na raiz deverão copiar o
+  `package.json` de todos os workspaces npm declarados.
 
 Variáveis de ambiente por serviço. Cada microsserviço lê somente as
 variáveis do próprio prefixo e as comuns de que precisa; a porta interna de
@@ -836,7 +848,8 @@ Na versão completa, o Nginx deverá encaminhar:
 /api/v1/orders      -> orders-service
 ~~~
 
-Na implementação inicial, "/api/v1/products" deverá ser encaminhado para
+Na implementação atual, "/api/v1/auth/" é encaminhado para "auth-service" e
+"/api/v1/products" deverá ser encaminhado para
 "products-service" para as operações de criação e consulta. O caminho
 "/api/v1/products/:id" deverá ser encaminhado somente para a operação PUT de
 edição. Nenhuma rota "/internal/" deverá ser encaminhada.
@@ -893,6 +906,17 @@ listagem pública deverá documentar os parâmetros de consulta opcionais `id` e
 `name`, incluindo o formato UUID do primeiro.
 As rotas internas deverão aparecer documentadas, mas continuarão bloqueadas
 pelo Nginx para clientes externos.
+
+O serviço de Auth segue as mesmas regras de habilitação. Internamente, usa
+`/docs` e `/docs-json`; pelo gateway, fica em `/auth/docs`, `/auth/docs/`
+(recursos da interface) e `/auth/docs-json`. O documento deverá conter
+exatamente as rotas abaixo, todas públicas (sem esquema de segurança):
+
+| Método | Rota | Tag |
+|---|---|---|
+| POST | /api/v1/auth/register | Autenticação |
+| POST | /api/v1/auth/login | Autenticação |
+| GET | /health | Infraestrutura |
 
 ## 12. Testes
 
@@ -995,6 +1019,13 @@ health, dos métodos HTTP, dos filtros `id` e `name` na listagem, do esquema
 Bearer JWT, do header `X-Internal-Token` e dos schemas de produto, erro e
 health.
 
+Para Auth, `npm run verify:swagger:auth` deverá confirmar o título, as três
+rotas da seção 11.1 e somente elas, as respostas 201/400/409/500 do cadastro e
+200/400/401/500 do login, a ausência de exigência de JWT, os corpos JSON, os
+schemas `RegisterUserDto`, `LoginDto`, `UserResponseDto`, `LoginResponseDto`,
+`ErrorResponseDto` e `HealthResponseDto`, a ausência de senha na resposta de
+usuário e HTTP 200 em `/auth/docs` e nos recursos da interface.
+
 ## 13. Comandos de execução
 
 O README ou a documentação de execução deverá apresentar comandos equivalentes a:
@@ -1005,6 +1036,7 @@ docker compose --env-file .env -f infra/docker/docker-compose.yml ps
 docker compose --env-file .env -f infra/docker/docker-compose.yml logs -f products-service
 docker compose --env-file .env -f infra/docker/docker-compose.yml down
 npm run verify:swagger:products
+npm run verify:swagger:auth
 ~~~
 
 Para cada microsserviço, deverá existir comando de teste com cobertura:
@@ -1023,7 +1055,7 @@ O trabalho deverá ser considerado inválido se qualquer microsserviço ficar ab
 - [ ] Todos os seis bancos PostgreSQL estão definidos no Compose.
 - [ ] Nginx encaminha somente as rotas externas.
 - [ ] Rotas "/internal/" não estão expostas pelo Nginx.
-- [ ] Auth cadastra usuários e emite JWT.
+- [x] Auth cadastra usuários e emite JWT.
 - [ ] Todos os serviços protegidos validam JWT.
 - [ ] Produtos possui banco de escrita e banco de leitura.
 - [ ] Estoque possui banco de escrita e banco de leitura.
@@ -1054,7 +1086,7 @@ O trabalho deverá ser considerado inválido se qualquer microsserviço ficar ab
 - Produtos e Estoque utilizam CQRS.
 - A consistência dos bancos de leitura é eventual.
 - Rotas internas são protegidas por "X-Internal-Token".
-- A implementação é incremental; nesta etapa Produtos e Estoque estão ativos.
+- A implementação é incremental; nesta etapa Auth, Produtos e Estoque estão ativos.
 
 ## 16. Estado da implementação inicial
 
@@ -1077,7 +1109,7 @@ do sistema:
 - A cobertura do serviço de Produtos possui limiar de 50% para branches,
   functions, lines e statements, com suíte unitária independente.
 
-As próximas implementações deverão adicionar Auth e Pedidos sem
+As próximas implementações deverão adicionar Pedidos sem
 alterar os limites de dados, rotas internas e contratos definidos nesta
 especificação.
 
@@ -1161,8 +1193,8 @@ interno, bloqueio pelo gateway, adição, projeção, dez débitos simultâneos 
 mesmo pedido, débitos concorrentes com estoque limitado, movimentações, Outbox
 e evento antigo. Execute-o em ambiente de desenvolvimento/teste.
 A suíte própria exige ao menos 50% nas quatro métricas JaCoCo definidas na seção 12.1.
-Auth e Pedidos ainda não estão implementados; o fluxo completo da seção 12.3
-permanece para a integração futura desses serviços.
+Pedidos ainda não está implementado; o fluxo completo da seção 12.3
+permanece para a integração futura desse serviço.
 
 
 ### 17.1 Preservação dos dados da versão NestJS
@@ -1201,3 +1233,53 @@ Veja `services/inventory/README.md`: o fluxo principal é
 `StockRules` contém as regras, executadas dentro da transação pelo adaptador
 quando dependem do saldo. `OutboxPublisherWorker` publica eventos e
 `StockReadProjectorConsumer` atualiza o banco de leitura.
+
+
+## 18. Implementação de Auth (versão 2.2)
+
+`services/auth` é um workspace npm NestJS independente. O fluxo principal é
+`AuthController → RegisterUserUseCase/LoginUseCase → portas
+(USER_REPOSITORY, PASSWORD_HASHER, TOKEN_ISSUER)`, implementadas por
+`TypeOrmUserRepository`, `BcryptPasswordHasher` e `JwtTokenIssuer`, todas
+registradas no `AuthModule` por injeção de dependências.
+
+### Contratos e regras
+
+- `POST /api/v1/auth/register`: 201 com `id`, `name`, `email` e `createdAt`.
+  A senha e o hash nunca são retornados.
+- `POST /api/v1/auth/login`: 200 com `accessToken`, `tokenType` (`Bearer`),
+  `expiresIn` (segundos) e `user` (`id`, `name`, `email`).
+- Códigos de erro: `VALIDATION_ERROR` (400), `EMAIL_ALREADY_REGISTERED` (409),
+  `INVALID_CREDENTIALS` (401) e `INTERNAL_SERVER_ERROR` (500). Erros 5xx
+  retornam a mensagem genérica "Erro interno do servidor", sem detalhes
+  internos. O `traceId` vem de `X-Request-Id` ou é gerado quando ausente.
+- O e-mail é normalizado (espaços removidos e letras minúsculas) no cadastro e
+  no login.
+- A senha é armazenada com bcryptjs, custo 10. No login com e-mail
+  inexistente, a senha é comparada com um hash fictício para não revelar, pelo
+  tempo de resposta, quais e-mails estão cadastrados.
+- O JWT é assinado com HS256 e `JWT_SECRET` e contém `sub` (id do usuário),
+  `email`, `iat` e `exp`. `JWT_EXPIRES_IN` inválido impede a inicialização.
+- O serviço não registra corpo de requisições, senhas ou tokens em log.
+
+### Dados
+
+"auth-db" (PostgreSQL 16, volume `auth-data`, sem porta publicada) contém a
+tabela `users` (`id` uuid, `name` varchar(120), `email` varchar(254) único,
+`password_hash` varchar(100), `created_at` timestamptz). A unicidade do e-mail
+é garantida pelo banco; uma violação concorrente (`23505`) também retorna 409.
+
+### Configuração e validação
+
+Variáveis: `AUTH_PORT`, `AUTH_DB_{HOST,PORT,NAME,USER,PASSWORD}`,
+`JWT_SECRET`, `JWT_EXPIRES_IN`, `NODE_ENV` e `SWAGGER_ENABLED`.
+
+~~~bash
+npm run test:auth
+npm run infra:up
+npm run verify:swagger:auth
+~~~
+
+A suíte de Auth cobre os casos da seção 12.2 com portas mockadas, validação
+dos DTOs, geração e validação de JWT, hash bcrypt, mapeamento de erros HTTP
+com Supertest, repositório TypeORM e contrato OpenAPI, com limiar Jest de 50%.

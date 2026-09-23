@@ -1,6 +1,6 @@
 # Trabalho DevOps
 
-Sistema de delivery com microsserviços. Produtos e Estoque estão implementados.
+Sistema de delivery com microsserviços. Auth, Produtos e Estoque estão implementados.
 
 ## Requisitos locais
 
@@ -85,8 +85,40 @@ docker compose --env-file .env -f infra/docker/docker-compose.yml ps
 docker compose --env-file .env -f infra/docker/docker-compose.yml logs -f products-service
 ~~~
 
-A implementação contém Produtos e Estoque, cada um com dois bancos CQRS,
-RabbitMQ e o gateway Nginx. Auth e Pedidos serão adicionados posteriormente.
+A implementação contém Auth, com banco próprio, e Produtos e Estoque, cada um
+com dois bancos CQRS, RabbitMQ e o gateway Nginx. Pedidos será adicionado
+posteriormente.
+
+## Auth — cadastro e login
+
+Rotas públicas (sem JWT):
+
+- `POST /api/v1/auth/register`: `{ "name", "email", "password" }`. O e-mail é
+  normalizado para minúsculas e a senha, com 8 a 72 caracteres, é gravada
+  somente como hash bcrypt. Retorna 201; e-mail duplicado retorna 409.
+- `POST /api/v1/auth/login`: `{ "email", "password" }`. Retorna 200 com
+  `accessToken`, `tokenType`, `expiresIn` e `user`; credenciais inválidas
+  retornam 401.
+
+~~~bash
+curl -s http://localhost:8080/api/v1/auth/register -H 'Content-Type: application/json' \
+  -d '{"name":"Maria Silva","email":"maria@example.com","password":"SenhaSegura123"}'
+TOKEN=$(curl -s http://localhost:8080/api/v1/auth/login -H 'Content-Type: application/json' \
+  -d '{"email":"maria@example.com","password":"SenhaSegura123"}' | node -pe 'JSON.parse(require("fs").readFileSync(0)).accessToken')
+curl -s -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/inventory/<product-id>
+~~~
+
+O JWT é assinado com `JWT_SECRET` (HS256, claims `sub`, `email`, `iat` e `exp`)
+e validado localmente pelos demais serviços. A validade vem de
+`JWT_EXPIRES_IN`, em segundos.
+
+Swagger de Auth: http://localhost:8080/auth/docs.
+
+~~~bash
+npm run test:auth
+npm run build:auth
+npm run verify:swagger:auth
+~~~
 
 
 ## Estoque — Java e Spring Boot
