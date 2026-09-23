@@ -1,7 +1,7 @@
 # Especificação do Sistema de Delivery com Microsserviços
 
 **Status:** especificação de referência para implementação
-**Versão:** 2.4
+**Versão:** 2.5
 **Última atualização:** 2026-09-23
 **Idioma:** português
 **Objetivo:** orientar a construção, execução e validação de um sistema simples de delivery com foco em DevOps.
@@ -10,6 +10,7 @@
 
 | Versão | Data | Alteração |
 |---|---|---|
+| 2.5 | 2026-09-23 | Adicionado o roteiro de validação ponta a ponta `npm run verify:flow` (container `flow-check`, perfil `tools`), executado pelo gateway com o JWT real do login e polling das projeções |
 | 2.4 | 2026-09-23 | Implementado Pedidos em NestJS com criação, consulta e conclusão, clientes REST de Produtos e Estoque com timeout, banco `orders-db`, Swagger em `/orders/docs`, validação `verify:swagger:orders` e cobertura mínima; definidos `PRODUCT_INACTIVE` (409), o mapeamento de erros das dependências e a retentativa de gravação após o débito |
 | 2.3 | 2026-09-23 | Removido o bypass temporário `AUTH_ENABLED` de Produtos (antiga seção 9.1); JWT obrigatório em todas as rotas públicas, em qualquer ambiente |
 | 2.2 | 2026-09-23 | Implementado Auth em NestJS com cadastro, login JWT, banco `auth-db`, Swagger em `/auth/docs`, validação `verify:swagger:auth` e cobertura mínima |
@@ -1038,6 +1039,35 @@ Além dos testes unitários, deverá existir um roteiro de validação com Docke
 9. Conclusão do pedido.
 10. Repetição da conclusão para validar idempotência.
 
+O roteiro é executado por:
+
+~~~bash
+npm run verify:flow
+~~~
+
+O comando roda `scripts/verify-flow.mjs` no container `flow-check` (perfil
+`tools`, imagem `node:24-alpine`, sem dependências além do Node), que depende
+do `nginx-gateway` saudável. O mesmo script pode ser executado do host com
+`node scripts/verify-flow.mjs`; a variável `GATEWAY_URL` define o gateway
+(padrão `http://localhost:8080`, `http://nginx-gateway` no container).
+
+Regras do roteiro:
+
+- Todas as chamadas passam pelo gateway; nenhuma rota `/internal/` é usada.
+- O JWT utilizado é o `accessToken` emitido pelo login do usuário recém
+  cadastrado, com e-mail único por execução.
+- Cada requisição envia um `X-Request-Id` próprio.
+- As projeções de Produto (`GET /api/v1/products?id=`) e de Estoque
+  (`GET /api/v1/inventory/:productId`) são aguardadas com polling (até 60
+  tentativas a cada 250 ms), pois a consistência é eventual.
+- O pedido é validado com `status` `CREATED`, `userId` igual ao `id` do
+  usuário cadastrado, `unitPrice` 34.90 e `total` 69.80; a criação sem JWT
+  retorna 401.
+- A consulta retorna o mesmo pedido criado; a conclusão e a sua repetição
+  retornam 200 com o mesmo corpo `COMPLETED`, sem alterar `updatedAt`.
+- Ao final, a projeção de estoque deverá convergir de 20 para 18 unidades,
+  refletindo o débito feito por Pedidos.
+
 ### 12.4 Contrato Swagger
 
 O projeto deverá possuir validação automatizada do documento OpenAPI por meio
@@ -1079,6 +1109,9 @@ docker compose --env-file .env -f infra/docker/docker-compose.yml down
 npm run verify:swagger:products
 npm run verify:swagger:auth
 npm run verify:swagger:orders
+npm run verify:swagger:inventory
+npm run verify:flow:inventory
+npm run verify:flow
 ~~~
 
 Para cada microsserviço, deverá existir comando de teste com cobertura:

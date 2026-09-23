@@ -317,6 +317,22 @@ services:
     networks:
       - delivery-private
 
+  flow-check:
+    profiles: ["tools"]
+    image: node:24-alpine
+    user: node
+    working_dir: /app
+    command: ["node", "/app/verify-flow.mjs"]
+    volumes:
+      - ../../scripts/verify-flow.mjs:/app/verify-flow.mjs:ro
+    environment:
+      GATEWAY_URL: http://nginx-gateway
+    depends_on:
+      nginx-gateway:
+        condition: service_healthy
+    networks:
+      - delivery-private
+
 networks:
   delivery-private:
     driver: bridge

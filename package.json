@@ -29,6 +29,7 @@
     "dev:inventory": "mvn -f services/inventory/pom.xml spring-boot:run",
     "test:inventory": "mvn -f services/inventory/pom.xml verify",
     "verify:swagger:inventory": "node scripts/verify-inventory-swagger.mjs",
-    "verify:flow:inventory": "docker compose --env-file .env -f infra/docker/docker-compose.yml --profile tools run --rm inventory-check"
+    "verify:flow:inventory": "docker compose --env-file .env -f infra/docker/docker-compose.yml --profile tools run --rm inventory-check",
+    "verify:flow": "docker compose --env-file .env -f infra/docker/docker-compose.yml --profile tools run --rm flow-check"
   }
 }

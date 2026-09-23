@@ -180,3 +180,21 @@ Comece por `domain/StockRules.java` e `application/usecase/AddStockUseCase.java`
 O [guia do serviço](services/inventory/README.md) explica as pastas e as classes.
 Produtos permanece em NestJS. O serviço Java mantém os bancos e dados da
 versão anterior; não é necessário excluir volumes para migrar.
+
+## Fluxo completo entre os serviços
+
+Com a infraestrutura em execução, o roteiro da seção 12.3 da especificação
+percorre cadastro, login, criação de produto, adição de estoque, consulta das
+projeções de Produto e Estoque, criação, consulta e conclusão do pedido e a
+repetição da conclusão (idempotência). Todas as chamadas passam pelo gateway
+com o JWT real emitido pelo login, e as projeções são aguardadas com polling.
+
+~~~bash
+npm run infra:up
+npm run verify:flow
+~~~
+
+O comando executa o container `flow-check` (perfil `tools`). O mesmo roteiro
+pode ser executado do host com `node scripts/verify-flow.mjs`, usando
+`GATEWAY_URL` (padrão `http://localhost:8080`). Cada execução cria um usuário,
+um produto e um pedido de teste.
