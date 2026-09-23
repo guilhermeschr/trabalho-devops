@@ -1,8 +1,8 @@
 # Especificação do Sistema de Delivery com Microsserviços
 
 **Status:** especificação de referência para implementação
-**Versão:** 2.0
-**Última atualização:** 2026-09-18
+**Versão:** 2.1
+**Última atualização:** 2026-09-23
 **Idioma:** português
 **Objetivo:** orientar a construção, execução e validação de um sistema simples de delivery com foco em DevOps.
 
@@ -10,6 +10,7 @@
 
 | Versão | Data | Alteração |
 |---|---|---|
+| 2.1 | 2026-09-23 | Definida a stack NestJS/TypeORM/Jest para Auth e Pedidos, com injeção de dependências por tokens; variáveis de ambiente alinhadas ao padrão real por serviço |
 | 2.0 | 2026-09-18 | Migrado somente Estoque para Java 21 e Spring Boot; Spring JDBC, Flyway, JUnit/JaCoCo; preservados contratos HTTP, eventos e dados existentes |
 | 1.9 | 2026-09-18 | Implementado Estoque com CQRS, débito idempotente concorrente, projeção versionada, Outbox, Swagger e infraestrutura; normalizado nome Compose para delivery |
 | 1.8 | 2026-09-17 | Adicionados os filtros opcionais por ID exato e nome parcial na consulta de produtos, com contrato Swagger e validação automatizada |
@@ -34,7 +35,7 @@ O trabalho deverá demonstrar:
 - CQRS nos serviços de Produtos e Estoque.
 - Bancos de escrita e leitura separados para Produtos e Estoque.
 - RabbitMQ para atualização dos modelos de consulta.
-- Injeção de dependências com NestJS em Produtos e Spring em Estoque.
+- Injeção de dependências com NestJS em Produtos, Auth e Pedidos e com Spring em Estoque.
 - Testes unitários com cobertura mínima de 50% em cada microsserviço.
 - Execução local reproduzível com Docker Compose.
 
@@ -57,16 +58,23 @@ Não fazem parte desta versão:
 
 | Categoria | Tecnologia |
 |---|---|
-| Linguagem | TypeScript (Produtos); Java 21 (Estoque) |
-| Runtime | Node.js (Produtos); JVM (Estoque) |
-| Framework | NestJS (Produtos); Spring Boot 3.5.16 (Estoque) |
+| Linguagem | TypeScript (Produtos, Auth e Pedidos); Java 21 (Estoque) |
+| Runtime | Node.js (Produtos, Auth e Pedidos); JVM (Estoque) |
+| Framework | NestJS (Produtos, Auth e Pedidos); Spring Boot 3.5.16 (Estoque) |
 | Persistência | PostgreSQL |
-| Persistência e migrações | TypeORM (Produtos); Spring JDBC e Flyway (Estoque) |
+| Persistência e migrações | TypeORM com migrações executadas na inicialização (Produtos, Auth e Pedidos); Spring JDBC e Flyway (Estoque) |
+| Hash de senha | bcryptjs, implementação bcrypt em JavaScript puro, sem compilação nativa (Auth) |
+| Cliente REST | `fetch` nativo do Node.js com `AbortSignal.timeout` (Pedidos) |
 | Mensageria | RabbitMQ |
 | Gateway | Nginx |
 | Empacotamento | Docker e Docker Compose |
-| Testes | Jest e Supertest (Produtos); JUnit 5, Mockito, MockMvc, Testcontainers e JaCoCo (Estoque) |
+| Testes | Jest e Supertest (Produtos, Auth e Pedidos); JUnit 5, Mockito, MockMvc, Testcontainers e JaCoCo (Estoque) |
 | Documentação de API | Swagger/OpenAPI |
+
+Cada serviço TypeScript é um workspace npm próprio na raiz do repositório
+(`services/products`, `services/auth` e `services/orders`), com `package.json`,
+configuração Jest e Dockerfile independentes. Estoque é construído com Maven e
+não participa dos workspaces npm.
 
 ### 2.2 Componentes
 
@@ -694,8 +702,10 @@ Regras obrigatórias:
 
 - Controllers dependem somente de casos de uso.
 - Casos de uso dependem de interfaces, não de implementações concretas.
-- Em Produtos, repositórios TypeORM são registrados com tokens; em Estoque, implementações das interfaces são beans Spring injetados pelo construtor.
-- Bancos de leitura e escrita devem possuir conexões nomeadas.
+- Em Produtos, Auth e Pedidos, portas são declaradas com tokens `Symbol` e registradas no módulo NestJS com providers `useClass`; em Estoque, implementações das interfaces são beans Spring injetados pelo construtor.
+- Em Auth, o repositório de usuários (`USER_REPOSITORY`), o gerador de hash de senha (`PASSWORD_HASHER`) e o emissor de JWT (`TOKEN_ISSUER`) são portas injetadas nos casos de uso.
+- Em Pedidos, o repositório de pedidos (`ORDER_REPOSITORY`) e os clientes REST de Produtos (`PRODUCTS_CLIENT`) e Estoque (`INVENTORY_CLIENT`) são portas injetadas; URLs, token interno e timeout dos clientes vêm do ConfigService.
+- Bancos de leitura e escrita devem possuir conexões nomeadas; Auth e Pedidos usam uma conexão nomeada para o próprio banco.
 - Clientes REST devem ser providers injetáveis.
 - Publicadores e consumidores RabbitMQ devem ser providers injetáveis.
 - Configurações são obtidas pelo ConfigService (NestJS) ou pelo Environment/propriedades do Spring, sempre a partir do ambiente.
@@ -783,30 +793,35 @@ Requisitos:
 - O serviço de Produtos deverá executar as migrações TypeORM de escrita e
   leitura antes de atender as rotas.
 
-Variáveis de ambiente mínimas:
+Variáveis de ambiente por serviço. Cada microsserviço lê somente as
+variáveis do próprio prefixo e as comuns de que precisa; a porta interna de
+todos os containers é 3000.
 
-~~~text
-NODE_ENV
-PORT
-DATABASE_HOST
-DATABASE_PORT
-DATABASE_NAME
-DATABASE_USER
-DATABASE_PASSWORD
-READ_DATABASE_HOST
-READ_DATABASE_PORT
-READ_DATABASE_NAME
-READ_DATABASE_USER
-READ_DATABASE_PASSWORD
-RABBITMQ_URL
-SWAGGER_ENABLED
-JWT_SECRET
-JWT_EXPIRES_IN
-INTERNAL_SERVICE_TOKEN
-PRODUCTS_SERVICE_URL
-INVENTORY_SERVICE_URL
-ORDERS_SERVICE_URL
-~~~
+| Escopo | Variáveis |
+|---|---|
+| Comuns | `NODE_ENV`, `SWAGGER_ENABLED`, `JWT_SECRET`, `INTERNAL_SERVICE_TOKEN` |
+| Gateway | `PRODUCTS_PUBLIC_PORT` (porta HTTP publicada pelo Nginx, padrão 8080) |
+| RabbitMQ (Produtos e Estoque) | `RABBITMQ_URL`, `RABBITMQ_EXCHANGE` |
+| Produtos | `PRODUCTS_PORT`, `PRODUCTS_WRITE_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `PRODUCTS_READ_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `RABBITMQ_PRODUCTS_QUEUE`, `AUTH_ENABLED` (temporária, seção 9.1) |
+| Estoque | `INVENTORY_PORT`, `INVENTORY_WRITE_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `INVENTORY_READ_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `RABBITMQ_INVENTORY_QUEUE` |
+| Auth | `AUTH_PORT`, `AUTH_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `JWT_EXPIRES_IN` |
+| Pedidos | `ORDERS_PORT`, `ORDERS_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `PRODUCTS_SERVICE_URL`, `INVENTORY_SERVICE_URL`, `ORDERS_HTTP_TIMEOUT_MS` |
+
+Regras:
+
+- `JWT_SECRET` é o mesmo em todos os serviços: Auth assina e os demais validam
+  localmente.
+- `JWT_EXPIRES_IN` é a validade do JWT em segundos (padrão `3600`). O sufixo
+  `s` é aceito por compatibilidade (`3600s`). O valor numérico é retornado em
+  `expiresIn` no login.
+- `INTERNAL_SERVICE_TOKEN` deverá ser diferente de `JWT_SECRET`.
+- `PRODUCTS_SERVICE_URL` e `INVENTORY_SERVICE_URL` usam os nomes dos containers
+  na rede Docker (`http://products-service:3000` e
+  `http://inventory-service:3000`).
+- `ORDERS_HTTP_TIMEOUT_MS` é o timeout, em milissegundos, de cada chamada REST
+  de Pedidos (padrão 3000). Ao ser excedido, a chamada é tratada como
+  dependência indisponível (503, seção 6.3).
+- Nenhum serviço chama Pedidos; por isso não existe `ORDERS_SERVICE_URL`.
 
 As credenciais deverão ser fornecidas por ".env.example" sem valores reais.
 
@@ -885,7 +900,7 @@ Cada microsserviço deverá possuir testes unitários independentes.
 
 ### 12.1 Meta de cobertura
 
-Em Produtos, a configuração do Jest deverá impedir cobertura inferior a 50%:
+Em Produtos, Auth e Pedidos, a configuração do Jest de cada serviço deverá impedir cobertura inferior a 50%:
 
 ~~~typescript
 coverageThreshold: {
@@ -992,10 +1007,13 @@ docker compose --env-file .env -f infra/docker/docker-compose.yml down
 npm run verify:swagger:products
 ~~~
 
-Para cada microsserviço, deverá existir comando de teste equivalente a:
+Para cada microsserviço, deverá existir comando de teste com cobertura:
 
 ~~~bash
-npm test -- --coverage
+npm run test:products
+npm run test:auth
+npm run test:orders
+npm run test:inventory
 ~~~
 
 O trabalho deverá ser considerado inválido se qualquer microsserviço ficar abaixo da cobertura mínima de 50%.
@@ -1032,6 +1050,7 @@ O trabalho deverá ser considerado inválido se qualquer microsserviço ficar ab
 - A conclusão altera o status para "COMPLETED".
 - Não existe rota de cancelamento nesta versão.
 - Auth e Pedidos utilizam um banco próprio cada.
+- Auth e Pedidos são implementados em TypeScript/NestJS, como Produtos.
 - Produtos e Estoque utilizam CQRS.
 - A consistência dos bancos de leitura é eventual.
 - Rotas internas são protegidas por "X-Internal-Token".
