@@ -1,0 +1,855 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2026-09-23T00:00:00.000Z",
+  "__export_source": "insomnia.desktop.app:v2023.5.8",
+  "resources": [
+    {
+      "_id": "wrk_delivery",
+      "_type": "workspace",
+      "parentId": null,
+      "name": "Delivery Microsserviços",
+      "description": "Roteiro de apresentação — docs/roteiro-apresentacao.md",
+      "scope": "collection"
+    },
+    {
+      "_id": "env_base",
+      "_type": "environment",
+      "parentId": "wrk_delivery",
+      "name": "Base Environment",
+      "data": {},
+      "dataPropertyOrder": null,
+      "isPrivate": false
+    },
+    {
+      "_id": "env_local",
+      "_type": "environment",
+      "parentId": "env_base",
+      "name": "Local (gateway :8080)",
+      "isPrivate": false,
+      "data": {
+        "base_url": "http://localhost:8080",
+        "email_a": "maria.demo@example.com",
+        "email_b": "joao.demo@example.com",
+        "senha": "SenhaSegura123",
+        "produto_inexistente": "00000000-0000-4000-8000-000000000000",
+        "token": "{% response 'body', 'req_02_login_a', 'b64::JC5hY2Nlc3NUb2tlbg==::46b', 'never', 60 %}",
+        "token_b": "{% response 'body', 'req_07_login_b', 'b64::JC5hY2Nlc3NUb2tlbg==::46b', 'never', 60 %}",
+        "product_id": "{% response 'body', 'req_11_criar_produto', 'b64::JC5pZA==::46b', 'never', 60 %}",
+        "order_id": "{% response 'body', 'req_22_criar_pedido', 'b64::JC5pZA==::46b', 'never', 60 %}"
+      }
+    },
+    {
+      "_id": "fld_1_auth",
+      "_type": "request_group",
+      "parentId": "wrk_delivery",
+      "name": "1. Auth",
+      "description": "Cadastro e login (rotas públicas).",
+      "metaSortKey": 0
+    },
+    {
+      "_id": "req_01_register_a",
+      "_type": "request",
+      "parentId": "fld_1_auth",
+      "name": "1.1 Cadastrar usuário A (201)",
+      "description": "Em uma segunda execução retorna 409 — basta seguir para o login.",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/auth/register",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Maria Silva\",\n  \"email\": \"{{ _.email_a }}\",\n  \"password\": \"{{ _.senha }}\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 1
+    },
+    {
+      "_id": "req_03_register_dup",
+      "_type": "request",
+      "parentId": "fld_1_auth",
+      "name": "1.2 E-mail duplicado (409)",
+      "description": "",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/auth/register",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Maria Silva\",\n  \"email\": \"{{ _.email_a }}\",\n  \"password\": \"{{ _.senha }}\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 2
+    },
+    {
+      "_id": "req_04_register_invalid",
+      "_type": "request",
+      "parentId": "fld_1_auth",
+      "name": "1.3 Senha curta (400)",
+      "description": "",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/auth/register",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Maria\",\n  \"email\": \"curta@example.com\",\n  \"password\": \"123\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 3
+    },
+    {
+      "_id": "req_02_login_a",
+      "_type": "request",
+      "parentId": "fld_1_auth",
+      "name": "1.4 Login usuário A (200) — gera {{token}}",
+      "description": "",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/auth/login",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"{{ _.email_a }}\",\n  \"password\": \"{{ _.senha }}\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 4
+    },
+    {
+      "_id": "req_05_login_wrong",
+      "_type": "request",
+      "parentId": "fld_1_auth",
+      "name": "1.5 Login com senha errada (401)",
+      "description": "",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/auth/login",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"{{ _.email_a }}\",\n  \"password\": \"errada123\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 5
+    },
+    {
+      "_id": "req_06_register_b",
+      "_type": "request",
+      "parentId": "fld_1_auth",
+      "name": "1.6 Cadastrar usuário B (201)",
+      "description": "",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/auth/register",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"João Souza\",\n  \"email\": \"{{ _.email_b }}\",\n  \"password\": \"{{ _.senha }}\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 6
+    },
+    {
+      "_id": "req_07_login_b",
+      "_type": "request",
+      "parentId": "fld_1_auth",
+      "name": "1.7 Login usuário B (200) — gera {{token_b}}",
+      "description": "",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/auth/login",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"{{ _.email_b }}\",\n  \"password\": \"{{ _.senha }}\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 7
+    },
+    {
+      "_id": "fld_2_produtos",
+      "_type": "request_group",
+      "parentId": "wrk_delivery",
+      "name": "2. Produtos (CQRS)",
+      "description": "Escrita em products-write-db; consultas em products-read-db (eventual).",
+      "metaSortKey": 8
+    },
+    {
+      "_id": "req_10_sem_token",
+      "_type": "request",
+      "parentId": "fld_2_produtos",
+      "name": "2.1 Listar sem JWT (401)",
+      "description": "",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/products",
+      "body": {},
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 9
+    },
+    {
+      "_id": "req_11_criar_produto",
+      "_type": "request",
+      "parentId": "fld_2_produtos",
+      "name": "2.2 Criar produto (201) — gera {{product_id}}",
+      "description": "",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/products",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Hambúrguer artesanal\",\n  \"description\": \"Hambúrguer com queijo e molho especial\",\n  \"price\": 29.9,\n  \"active\": true\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 10
+    },
+    {
+      "_id": "req_12_editar_produto",
+      "_type": "request",
+      "parentId": "fld_2_produtos",
+      "name": "2.3 Editar produto (200)",
+      "description": "",
+      "method": "PUT",
+      "url": "{{ _.base_url }}/api/v1/products/{{ _.product_id }}",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Hambúrguer artesanal especial\",\n  \"description\": \"Hambúrguer com queijo, bacon e molho especial\",\n  \"price\": 34.9,\n  \"active\": true\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 11
+    },
+    {
+      "_id": "req_13_preco_invalido",
+      "_type": "request",
+      "parentId": "fld_2_produtos",
+      "name": "2.4 Preço inválido (400)",
+      "description": "",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/products",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"X\",\n  \"description\": \"Y\",\n  \"price\": -1,\n  \"active\": true\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 12
+    },
+    {
+      "_id": "req_14_listar",
+      "_type": "request",
+      "parentId": "fld_2_produtos",
+      "name": "2.5 Listar todos (200)",
+      "description": "",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/products",
+      "body": {},
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 13
+    },
+    {
+      "_id": "req_15_filtro_id",
+      "_type": "request",
+      "parentId": "fld_2_produtos",
+      "name": "2.6 Filtrar por id (200)",
+      "description": "",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/products?id={{ _.product_id }}",
+      "body": {},
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 14
+    },
+    {
+      "_id": "req_16_filtro_nome",
+      "_type": "request",
+      "parentId": "fld_2_produtos",
+      "name": "2.7 Filtrar por nome parcial (200)",
+      "description": "",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/products?name=especial",
+      "body": {},
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 15
+    },
+    {
+      "_id": "fld_3_estoque",
+      "_type": "request_group",
+      "parentId": "wrk_delivery",
+      "name": "3. Estoque (CQRS, Java)",
+      "description": "Escrita em inventory-write-db; consulta em inventory-read-db.",
+      "metaSortKey": 16
+    },
+    {
+      "_id": "req_20_add_estoque",
+      "_type": "request",
+      "parentId": "fld_3_estoque",
+      "name": "3.1 Adicionar 20 unidades (200)",
+      "description": "",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/inventory",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"productId\": \"{{ _.product_id }}\",\n  \"quantity\": 20\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 17
+    },
+    {
+      "_id": "req_21_consultar_estoque",
+      "_type": "request",
+      "parentId": "fld_3_estoque",
+      "name": "3.2 Consultar estoque (200)",
+      "description": "",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/inventory/{{ _.product_id }}",
+      "body": {},
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 18
+    },
+    {
+      "_id": "fld_4_pedidos",
+      "_type": "request_group",
+      "parentId": "wrk_delivery",
+      "name": "4. Pedidos (REST entre serviços)",
+      "description": "Pedidos consulta Produtos e debita Estoque por rotas internas.",
+      "metaSortKey": 19
+    },
+    {
+      "_id": "req_22_criar_pedido",
+      "_type": "request",
+      "parentId": "fld_4_pedidos",
+      "name": "4.1 Criar pedido (201) — gera {{order_id}}",
+      "description": "",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/orders",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"productId\": \"{{ _.product_id }}\",\n  \"quantity\": 2\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 20
+    },
+    {
+      "_id": "req_23_estoque_insuf",
+      "_type": "request",
+      "parentId": "fld_4_pedidos",
+      "name": "4.2 Estoque insuficiente (409)",
+      "description": "",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/orders",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"productId\": \"{{ _.product_id }}\",\n  \"quantity\": 1000\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 21
+    },
+    {
+      "_id": "req_24_prod_inexistente",
+      "_type": "request",
+      "parentId": "fld_4_pedidos",
+      "name": "4.3 Produto inexistente (404)",
+      "description": "",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/orders",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"productId\": \"{{ _.produto_inexistente }}\",\n  \"quantity\": 1\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 22
+    },
+    {
+      "_id": "req_25_userid_corpo",
+      "_type": "request",
+      "parentId": "fld_4_pedidos",
+      "name": "4.4 userId no corpo (400)",
+      "description": "",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/orders",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"productId\": \"{{ _.product_id }}\",\n  \"quantity\": 1,\n  \"userId\": \"{{ _.produto_inexistente }}\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 23
+    },
+    {
+      "_id": "req_26_consultar_pedido",
+      "_type": "request",
+      "parentId": "fld_4_pedidos",
+      "name": "4.5 Consultar pedido (200)",
+      "description": "",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/orders/{{ _.order_id }}",
+      "body": {},
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 24
+    },
+    {
+      "_id": "req_27_b_consulta",
+      "_type": "request",
+      "parentId": "fld_4_pedidos",
+      "name": "4.6 Usuário B consulta pedido de A (403)",
+      "description": "",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/orders/{{ _.order_id }}",
+      "body": {},
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token_b }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 25
+    },
+    {
+      "_id": "req_28_b_conclui",
+      "_type": "request",
+      "parentId": "fld_4_pedidos",
+      "name": "4.7 Usuário B conclui pedido de A (403)",
+      "description": "",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/orders/{{ _.order_id }}/complete",
+      "body": {},
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token_b }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 26
+    },
+    {
+      "_id": "req_29_concluir",
+      "_type": "request",
+      "parentId": "fld_4_pedidos",
+      "name": "4.8 Concluir pedido (200)",
+      "description": "",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/orders/{{ _.order_id }}/complete",
+      "body": {},
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 27
+    },
+    {
+      "_id": "req_30_concluir_de_novo",
+      "_type": "request",
+      "parentId": "fld_4_pedidos",
+      "name": "4.9 Repetir conclusão — idempotente (200)",
+      "description": "",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/orders/{{ _.order_id }}/complete",
+      "body": {},
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 28
+    },
+    {
+      "_id": "req_31_estoque_18",
+      "_type": "request",
+      "parentId": "fld_4_pedidos",
+      "name": "4.10 Estoque após débito (18)",
+      "description": "",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/inventory/{{ _.product_id }}",
+      "body": {},
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 29
+    },
+    {
+      "_id": "req_32_desativar",
+      "_type": "request",
+      "parentId": "fld_4_pedidos",
+      "name": "4.11 Desativar produto (200)",
+      "description": "",
+      "method": "PUT",
+      "url": "{{ _.base_url }}/api/v1/products/{{ _.product_id }}",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Hambúrguer artesanal especial\",\n  \"description\": \"Fora do cardápio\",\n  \"price\": 34.9,\n  \"active\": false\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 30
+    },
+    {
+      "_id": "req_33_prod_inativo",
+      "_type": "request",
+      "parentId": "fld_4_pedidos",
+      "name": "4.12 Pedido de produto inativo (409)",
+      "description": "",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/orders",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"productId\": \"{{ _.product_id }}\",\n  \"quantity\": 1\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 31
+    },
+    {
+      "_id": "req_34_reativar",
+      "_type": "request",
+      "parentId": "fld_4_pedidos",
+      "name": "4.13 Reativar produto (200)",
+      "description": "",
+      "method": "PUT",
+      "url": "{{ _.base_url }}/api/v1/products/{{ _.product_id }}",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Hambúrguer artesanal especial\",\n  \"description\": \"Hambúrguer com queijo, bacon e molho especial\",\n  \"price\": 34.9,\n  \"active\": true\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 32
+    },
+    {
+      "_id": "req_35_resiliencia",
+      "_type": "request",
+      "parentId": "fld_4_pedidos",
+      "name": "4.14 Criar pedido com Estoque parado (503)",
+      "description": "Antes: docker compose --env-file .env -f infra/docker/docker-compose.yml stop inventory-service",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/orders",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"productId\": \"{{ _.product_id }}\",\n  \"quantity\": 1\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 33
+    },
+    {
+      "_id": "fld_5_gateway",
+      "_type": "request_group",
+      "parentId": "wrk_delivery",
+      "name": "5. Gateway Nginx",
+      "description": "Comportamentos do próprio Nginx.",
+      "metaSortKey": 34
+    },
+    {
+      "_id": "req_40_internal",
+      "_type": "request",
+      "parentId": "fld_5_gateway",
+      "name": "5.1 /internal/ bloqueado mesmo com token (404)",
+      "description": "",
+      "method": "GET",
+      "url": "{{ _.base_url }}/internal/v1/products/{{ _.product_id }}",
+      "body": {},
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "X-Internal-Token",
+          "value": "token-qualquer"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 35
+    },
+    {
+      "_id": "req_41_get_por_id",
+      "_type": "request",
+      "parentId": "fld_5_gateway",
+      "name": "5.2 GET /api/v1/products/:id (405)",
+      "description": "",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/products/{{ _.product_id }}",
+      "body": {},
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 36
+    },
+    {
+      "_id": "req_42_rota_inexistente",
+      "_type": "request",
+      "parentId": "fld_5_gateway",
+      "name": "5.3 Rota inexistente (404)",
+      "description": "",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/nao-existe",
+      "body": {},
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 37
+    },
+    {
+      "_id": "req_43_request_id",
+      "_type": "request",
+      "parentId": "fld_5_gateway",
+      "name": "5.4 X-Request-Id propagado no traceId (401)",
+      "description": "",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/orders",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "X-Request-Id",
+          "value": "apresentacao-001"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 38
+    }
+  ]
+}

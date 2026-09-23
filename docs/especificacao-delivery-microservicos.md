@@ -1,7 +1,7 @@
 # Especificação do Sistema de Delivery com Microsserviços
 
 **Status:** especificação de referência para implementação
-**Versão:** 2.8
+**Versão:** 2.9
 **Última atualização:** 2026-09-23
 **Idioma:** português
 **Objetivo:** orientar a construção, execução e validação de um sistema simples de delivery com foco em DevOps.
@@ -10,6 +10,7 @@
 
 | Versão | Data | Alteração |
 |---|---|---|
+| 2.9 | 2026-09-23 | Adicionados `docs/arquitetura.md` (visão geral resumida), `docs/roteiro-apresentacao.md` (roteiro de testes manuais), a coleção Insomnia `docs/insomnia-delivery.json` e o script `scripts/demo-manual.sh` (seção 13); sem alteração de contratos |
 | 2.8 | 2026-09-23 | Fechamento da especificação: checklist da seção 14 marcado conforme as suítes, a cobertura, os roteiros e o Swagger executados; seção 8 alinhada à organização real (`common/`, `health/`, `runtime/`); seções 10, 15, 16 e 17 atualizadas para os quatro serviços implementados |
 | 2.7 | 2026-09-23 | RabbitMQ passa a ter um usuário por serviço (`products` e `inventory`), com permissões restritas ao exchange `delivery.events` e às filas do próprio serviço, importados de `infra/rabbitmq/definitions.json` a cada inicialização |
 | 2.6 | 2026-09-23 | Nginx repassa `X-Request-Id` válido do cliente e gera um quando ausente ou inválido, descarta `X-Internal-Token` externo, aceita somente `PUT` em `/api/v1/products/:id` e retorna erros JSON (404 `ROUTE_NOT_FOUND`, 405 `METHOD_NOT_ALLOWED`, 503 `SERVICE_UNAVAILABLE`); `verify:flow` valida esse comportamento |
@@ -1202,6 +1203,12 @@ npm run test:inventory
 ~~~
 
 O trabalho deverá ser considerado inválido se qualquer microsserviço ficar abaixo da cobertura mínima de 50%.
+
+Para demonstração manual, `docs/roteiro-apresentacao.md` descreve o passo a
+passo pelo gateway, com a coleção Insomnia `docs/insomnia-delivery.json`. O
+script `bash scripts/demo-manual.sh` (opção `--pausa`, variável `GATEWAY_URL`)
+executa os mesmos passos com `curl` e falha se algum HTTP diferir do esperado.
+A visão geral resumida da arquitetura está em `docs/arquitetura.md`.
 
 ## 14. Critérios de aceite
 
