@@ -1,0 +1,23 @@
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /services/inventory
+    target-branch: develop
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+  - package-ecosystem: docker
+    directory: /services/inventory
+    target-branch: develop
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: /infra/render/inventory
+    target-branch: develop
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly

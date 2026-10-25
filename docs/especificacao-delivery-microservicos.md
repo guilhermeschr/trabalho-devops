@@ -1,8 +1,8 @@
 # Especificação do Sistema de Delivery com Microsserviços
 
 **Status:** especificação de referência para implementação
-**Versão:** 2.10
-**Última atualização:** 2026-09-23
+**Versão:** 2.11
+**Última atualização:** 2026-10-25
 **Idioma:** português
 **Objetivo:** orientar a construção, execução e validação de um sistema simples de delivery com foco em DevOps.
 
@@ -10,6 +10,7 @@
 
 | Versão | Data | Alteração |
 |---|---|---|
+| 2.11 | 2026-10-25 | T2 Estoque: porta PORT, Actuator/Prometheus com token próprio, CI/CD por digest, Sonar, Git Flow, gateway cloud e monitoramento; configuração externa pendente (seção 20) |
 | 2.10 | 2026-09-23 | Adicionada a coleção Bruno `docs/bruno/` (YAML OpenCollection) com asserção do HTTP esperado por requisição, executável pelo Runner ou por `npx @usebruno/cli run` (seção 13) |
 | 2.9 | 2026-09-23 | Adicionados `docs/arquitetura.md` (visão geral resumida), `docs/roteiro-apresentacao.md` (roteiro de testes manuais), a coleção Insomnia `docs/insomnia-delivery.json` e o script `scripts/demo-manual.sh` (seção 13); sem alteração de contratos |
 | 2.8 | 2026-09-23 | Fechamento da especificação: checklist da seção 14 marcado conforme as suítes, a cobertura, os roteiros e o Swagger executados; seção 8 alinhada à organização real (`common/`, `health/`, `runtime/`); seções 10, 15, 16 e 17 atualizadas para os quatro serviços implementados |
@@ -57,9 +58,9 @@ Não fazem parte desta versão:
 - Rastreamento ou cálculo de entrega.
 - Múltiplos produtos no mesmo pedido.
 - Frontend.
-- Deploy em nuvem.
-- Pipeline GitHub Actions.
 - Autorização baseada em múltiplos perfis de usuário.
+
+O T2 inclui deploy em nuvem e GitHub Actions para Estoque (seção 20).
 
 ## 2. Arquitetura geral
 
@@ -79,6 +80,7 @@ Não fazem parte desta versão:
 | Empacotamento | Docker e Docker Compose |
 | Testes | Jest e Supertest (Produtos, Auth e Pedidos); JUnit 5, Mockito, MockMvc, Testcontainers e JaCoCo (Estoque) |
 | Documentação de API | Swagger/OpenAPI |
+| Observabilidade do Estoque (T2) | Actuator, Micrometer, Prometheus e Grafana |
 
 Cada serviço TypeScript é um workspace npm próprio na raiz do repositório
 (`services/products`, `services/auth` e `services/orders`), com `package.json`,
@@ -868,7 +870,7 @@ todos os containers é 3000.
 | Gateway | `PRODUCTS_PUBLIC_PORT` (porta HTTP publicada pelo Nginx, padrão 8080) |
 | RabbitMQ (Produtos e Estoque) | `RABBITMQ_URL`, `RABBITMQ_EXCHANGE` |
 | Produtos | `PRODUCTS_PORT`, `PRODUCTS_WRITE_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `PRODUCTS_READ_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `RABBITMQ_PRODUCTS_QUEUE` |
-| Estoque | `INVENTORY_PORT`, `INVENTORY_WRITE_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `INVENTORY_READ_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `RABBITMQ_INVENTORY_QUEUE` |
+| Estoque | `PORT`, `APP_ENV`, `METRICS_TOKEN`, `INVENTORY_PORT`, `INVENTORY_WRITE_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `INVENTORY_READ_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `RABBITMQ_INVENTORY_QUEUE` |
 | Auth | `AUTH_PORT`, `AUTH_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `JWT_EXPIRES_IN` |
 | Pedidos | `ORDERS_PORT`, `ORDERS_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `PRODUCTS_SERVICE_URL`, `INVENTORY_SERVICE_URL`, `ORDERS_HTTP_TIMEOUT_MS` |
 
@@ -1346,7 +1348,7 @@ Swagger interno usa `/docs` e `/docs-json`; pelo gateway, fica em
 `/inventory/docs` e `/inventory/docs-json`. Só é habilitado com
 `SWAGGER_ENABLED=true` fora de produção. `NODE_ENV=production` e os perfis Spring `prod`/`production` desabilitam Swagger mesmo com a flag ativa. Os recursos estáticos locais são encaminhados por `/inventory/swagger-ui/`.
 
-Configuração: `INVENTORY_PORT`, `INVENTORY_WRITE_DB_{HOST,PORT,NAME,USER,PASSWORD}`,
+Configuração: `PORT`, `APP_ENV`, `METRICS_TOKEN`, `INVENTORY_PORT`, `INVENTORY_WRITE_DB_{HOST,PORT,NAME,USER,PASSWORD}`,
 `INVENTORY_READ_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `RABBITMQ_INVENTORY_QUEUE`,
 `RABBITMQ_URL` (usuário `inventory`, seção 7.4), `RABBITMQ_EXCHANGE`,
 `JWT_SECRET`, `INTERNAL_SERVICE_TOKEN` e `SWAGGER_ENABLED`. Exemplos locais
@@ -1515,3 +1517,42 @@ A suíte de Pedidos cobre os 14 casos da seção 12.2 com repositório e cliente
 REST mockados, o guard JWT e o mapeamento de erros HTTP com Supertest, os
 clientes REST com `fetch` mockado (timeout, falha de rede, 5xx e respostas
 inesperadas), o repositório TypeORM e o contrato OpenAPI, com limiar Jest de 50%.
+
+
+## 20. Trabalho Prático 2 — Estoque
+
+O T2 amplia o escopo anterior com CI/CD e cloud, mantendo Estoque no monorepo.
+Git Flow usa `feature/*` → `develop` (DEV) → `main` (HOMOL). A regra anterior
+sobre categorias de branches é substituída pelo requisito do T2.
+
+`PORT` tem precedência sobre `INVENTORY_PORT` (padrão 3000). Actuator expõe
+somente health e prometheus. `/actuator/health/readiness` verifica estado de
+prontidão e ambos os DataSources; `/health` continua verificando o processo.
+`/actuator/prometheus` e subcaminhos exigem `Authorization: Bearer <METRICS_TOKEN>`;
+sem configuração ou com token ausente/incorreto respondem 401 sem corpo.
+O caminho é normalizado, inclusive parâmetros separados por ponto e vírgula.
+Esses endpoints operacionais do Actuator não integram o contrato de negócio
+OpenAPI; a proteção e a exposição são verificadas por testes específicos.
+As métricas incluem application, environment (`APP_ENV`, padrão local) e
+histogramas HTTP. Nenhum detalhe de saúde é exposto.
+
+O workflow `.github/workflows/inventory.yml` executa verify com Java 21,
+SonarCloud com Quality Gate, build Docker e publicação exclusiva do estoque
+no GHCR; somente pushes em develop/main implantam, por digest. PRs de forks
+executam os testes sem acesso aos secrets e não são considerados evidência de
+Sonar aprovado. O CD consulta o deploy específico na API Render até `live` e
+verifica readiness, JWT, bloqueio interno e Swagger na URL pública.
+
+Cloud: Spring é um Render Private Service, acessível por Pedidos na rede
+privada da mesma região/workspace. Nginx público dedicado usa allowlist e não
+encaminha `/internal/`. Token interno complementa o isolamento de rede.
+A configuração cloud é adicional e não altera o Compose/gateway local.
+DEV e HOMOL usam quatro bancos lógicos (write/read por ambiente), usuários e
+vhosts RabbitMQ separados. Swagger fica habilitado em DEV e desabilitado em
+HOMOL (`SWAGGER_ENABLED=false`, `NODE_ENV=production`).
+
+Prometheus e Grafana têm configuração adicional em `monitoring/inventory/`.
+Provisionamento, secrets, plano Sonar, URLs, dashboards com dados reais e
+pipeline remoto ainda devem ser configurados/validados; não estão cobertos
+pelas evidências históricas da seção 14. Instruções e checklist de entrega:
+[DevOps do Estoque](inventory-devops.md).

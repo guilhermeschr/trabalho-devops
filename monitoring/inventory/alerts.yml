@@ -1,0 +1,17 @@
+groups:
+  - name: inventory
+    rules:
+      - alert: InventoryScrapeDown
+        expr: up{job=~"inventory-.*"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Metricas do estoque indisponiveis em {{ $labels.environment }}'
+      - alert: InventoryHighErrorRate
+        expr: sum by (environment) (rate(http_server_requests_seconds_count{application="inventory-service",status=~"5.."}[5m])) / clamp_min(sum by (environment) (rate(http_server_requests_seconds_count{application="inventory-service"}[5m])), 0.001) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Mais de 5% de erros HTTP em {{ $labels.environment }}'

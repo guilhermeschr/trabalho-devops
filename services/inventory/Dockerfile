@@ -8,7 +8,7 @@ RUN mvn -B -DskipTests package
 FROM eclipse-temurin:21-jre-alpine AS runtime
 WORKDIR /app
 RUN addgroup -S inventory && adduser -S inventory -G inventory
-COPY --from=build /app/target/inventory-service-0.1.0.jar app.jar
+COPY --from=build /app/target/inventory-service-*.jar app.jar
 USER inventory
 EXPOSE 3000
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

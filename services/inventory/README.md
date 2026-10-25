@@ -3,6 +3,13 @@
 Aplicação Java 21, Spring Boot 3.5.16 e Maven. Produtos continua em NestJS.
 A migração preserva os contratos HTTP, os eventos RabbitMQ e as tabelas PostgreSQL.
 
+## Trabalho Prático 2
+
+[Configuração de CI/CD, Render e monitoramento](../../docs/inventory-devops.md).
+A porta aceita `PORT` antes de `INVENTORY_PORT`. `/actuator/prometheus` exige
+`Authorization: Bearer <METRICS_TOKEN>`; readiness fica em
+`/actuator/health/readiness`. O serviço cloud Spring deve ser privado.
+
 ## Por onde começar
 
 Todas as classes ficam em `src/main/java/br/com/delivery/inventory/`.

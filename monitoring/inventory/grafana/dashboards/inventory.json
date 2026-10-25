@@ -1,0 +1,218 @@
+{
+  "uid": "inventory-t2",
+  "title": "Inventory \u2014 DEV e HOMOL",
+  "schemaVersion": 41,
+  "version": 1,
+  "refresh": "15s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "environment",
+        "type": "custom",
+        "query": "dev,homol",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Coleta disponivel",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "inventory-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "up{job=~\"inventory-.*\",environment=~\"$environment\"}",
+          "legendFormat": "{{environment}} {{pool}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Requisicoes por segundo",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "inventory-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (environment) (rate(http_server_requests_seconds_count{application=\"inventory-service\",environment=~\"$environment\",uri!~\"/actuator/.*\"}[5m]))",
+          "legendFormat": "{{environment}} {{pool}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Latencia p95",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "inventory-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le, environment) (rate(http_server_requests_seconds_bucket{application=\"inventory-service\",environment=~\"$environment\",uri!~\"/actuator/.*\"}[5m])))",
+          "legendFormat": "{{environment}} {{pool}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Erros HTTP 5xx por segundo",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "inventory-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (environment) (rate(http_server_requests_seconds_count{application=\"inventory-service\",environment=~\"$environment\",status=~\"5..\"}[5m]))",
+          "legendFormat": "{{environment}} {{pool}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Memoria JVM",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "inventory-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (environment) (jvm_memory_used_bytes{application=\"inventory-service\",environment=~\"$environment\"})",
+          "legendFormat": "{{environment}} {{pool}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "CPU do processo",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "inventory-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "process_cpu_usage{application=\"inventory-service\",environment=~\"$environment\"}",
+          "legendFormat": "{{environment}} {{pool}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": "Conexoes ativas por banco",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "inventory-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "hikaricp_connections_active{application=\"inventory-service\",environment=~\"$environment\"}",
+          "legendFormat": "{{environment}} {{pool}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+# Spring deve ser um Private Service, nunca um Web Service publico.
+server {
+    listen ${PORT};
+    server_tokens off;
+    resolver ${NGINX_LOCAL_RESOLVERS} valid=10s ipv6=off;
+    # Render fornece o DNS no /etc/resolv.conf; o entrypoint aplica o resolver.
+    set $inventory http://${INVENTORY_PRIVATE_HOST}:${INVENTORY_PRIVATE_PORT};
+    proxy_set_header Host $host;
+    proxy_set_header Authorization $http_authorization;
+    proxy_set_header X-Internal-Token "";
+    proxy_set_header X-Request-Id $request_id;
+    add_header X-Request-Id $request_id always;
+    location = /api/v1/inventory { proxy_pass $inventory; }
+    location /api/v1/inventory/ { proxy_pass $inventory; }
+    location = /actuator/health/readiness { proxy_pass $inventory; }
+    location = /actuator/prometheus { proxy_pass $inventory; }
+    location = /docs { proxy_pass $inventory; }
+    location = /docs-json { proxy_pass $inventory; }
+    location = /swagger-ui.html { proxy_pass $inventory; }
+    location /swagger-ui/ { proxy_pass $inventory; }
+    location / { return 404; }
+}

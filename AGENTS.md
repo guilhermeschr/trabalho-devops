@@ -109,6 +109,9 @@ Regras obrigatórias:
   variável efetiva `SWAGGER_ENABLED`, `NODE_ENV` e a recriação do container;
   não altere as rotas Swagger antes dessa verificação.
 
+Endpoints operacionais gerenciados pelo Actuator (health e prometheus) são
+validados por testes próprios; não integram o contrato de negócio OpenAPI.
+
 ## 6. Testes e qualidade
 
 Cada microsserviço deve possuir testes unitários próprios.
@@ -189,37 +192,10 @@ Não use `git add -A` ou `git add .` quando isso puder incluir alterações não
 
 ## 8. Padrão de branches
 
-Toda branch nova deverá:
-
-- Usar nome em português do Brasil.
-- Usar letras minúsculas.
-- Não conter acentos, espaços ou caracteres especiais.
-- Separar palavras com hífen.
-- Nunca utilizar o prefixo `codex/`.
-- Utilizar uma das categorias abaixo:
-
-| Categoria | Uso |
-|---|---|
-| `funcionalidade/` | Nova funcionalidade ou serviço |
-| `correcao/` | Correção de comportamento |
-| `documentacao/` | Alteração de documentação |
-| `refatoracao/` | Refatoração sem mudança funcional |
-| `manutencao/` | Manutenção técnica |
-| `infraestrutura/` | Docker, Nginx ou ambiente |
-
-Formato obrigatório: `<categoria>/<descricao-em-minusculas>`.
-
-Exemplos:
-
-- `funcionalidade/produtos-inicial`
-- `correcao/validacao-de-preco`
-- `infraestrutura/configurar-rabbitmq`
-
-Para criar uma branch, use:
-
-`git switch -c funcionalidade/produtos-inicial`
-
-Não crie branches diretamente com o prefixo `codex/`.
+Para o T2, usar Git Flow: `main` representa HOMOL, `develop` representa DEV
+e novas funcionalidades usam `feature/<descricao-em-minusculas>`.
+Use descrição específica, sem espaços ou acentos. Não use `codex/`.
+Não renomeie branches existentes nem faça integração sem solicitação.
 
 ## 9. Push e integração
 
