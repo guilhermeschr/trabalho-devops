@@ -1,7 +1,7 @@
 # Especificação do Sistema de Delivery com Microsserviços
 
 **Status:** especificação de referência para implementação
-**Versão:** 2.11
+**Versão:** 2.12
 **Última atualização:** 2026-10-25
 **Idioma:** português
 **Objetivo:** orientar a construção, execução e validação de um sistema simples de delivery com foco em DevOps.
@@ -10,6 +10,7 @@
 
 | Versão | Data | Alteração |
 |---|---|---|
+| 2.12 | 2026-10-25 | CI do Estoque aceita identificadores Sonar em Variables ou Secrets, com precedência de Variables; token permanece somente em Secrets; documentado plano OSS para o repositório público |
 | 2.11 | 2026-10-25 | T2 Estoque: porta PORT, Actuator/Prometheus com token próprio, CI/CD por digest, Sonar, Git Flow, gateway cloud e monitoramento; configuração externa pendente (seção 20) |
 | 2.10 | 2026-09-23 | Adicionada a coleção Bruno `docs/bruno/` (YAML OpenCollection) com asserção do HTTP esperado por requisição, executável pelo Runner ou por `npx @usebruno/cli run` (seção 13) |
 | 2.9 | 2026-09-23 | Adicionados `docs/arquitetura.md` (visão geral resumida), `docs/roteiro-apresentacao.md` (roteiro de testes manuais), a coleção Insomnia `docs/insomnia-delivery.json` e o script `scripts/demo-manual.sh` (seção 13); sem alteração de contratos |
@@ -1542,6 +1543,10 @@ no GHCR; somente pushes em develop/main implantam, por digest. PRs de forks
 executam os testes sem acesso aos secrets e não são considerados evidência de
 Sonar aprovado. O CD consulta o deploy específico na API Render até `live` e
 verifica readiness, JWT, bloqueio interno e Swagger na URL pública.
+Os identificadores `INVENTORY_SONAR_ORGANIZATION` e
+`INVENTORY_SONAR_PROJECT_KEY` são lidos de Variables ou, quando vazias,
+de Secrets do repositório. `INVENTORY_SONAR_TOKEN` permanece somente em Secrets.
+O projeto público usa uma organização no plano OSS, com suporte a branches.
 
 Cloud: Spring é um Render Private Service, acessível por Pedidos na rede
 privada da mesma região/workspace. Nginx público dedicado usa allowlist e não

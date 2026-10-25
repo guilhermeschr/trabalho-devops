@@ -49,23 +49,33 @@ do JaCoCo. Configure `main` como principal e `develop` como branch longa
 antes de analisar branches/PRs. Configure a proteção de main/develop para exigir
 o check Inventory e o Quality Gate; não autorize bypass silencioso do gate.
 
-A documentação oficial informa que o plano Free só analisa a branch principal;
-Team/Enterprise permitem análise de branches. Este workflow requer suporte a
-branches, inclusive develop e feature/*. Sem esse plano, o scanner deve falhar
-antes da publicação. Alternativa gratuita a avaliar com o professor: dois
-projetos independentes, cada um com sua branch principal, ou outro servidor
-Sonar compatível. Essa alternativa não foi implementada nem deve ser simulada
-passando develop como se fosse main no mesmo projeto.
+O plano Free comum só analisa a branch principal. Para este repositório
+público, a opção gratuita é uma organização no plano OSS, que permite análise
+de branches e PRs. A organização OSS criada para o estoque é
+`danielhoepers-devops`, e o projeto público é `danielhoepers-devops_inventory`.
+O workflow exige um plano com suporte às branches analisadas; não ignora um
+Quality Gate reprovado. A análise remota ainda precisa ser validada.
 
 Configuração no repositório GitHub:
 
 | Tipo | Nome |
 |---|---|
 | Secret | `INVENTORY_SONAR_TOKEN` |
-| Variable | `INVENTORY_SONAR_ORGANIZATION` |
-| Variable | `INVENTORY_SONAR_PROJECT_KEY` |
+| Variable ou Secret | `INVENTORY_SONAR_ORGANIZATION` |
+| Variable ou Secret | `INVENTORY_SONAR_PROJECT_KEY` |
 
-Fonte: [limitações de branches do SonarCloud](https://docs.sonarsource.com/sonarqube-cloud/analyzing-source-code/branch-analysis/branch-analysis).
+Os identificadores podem ser cadastrados em Variables ou Secrets. O workflow
+prefere Variables quando preenchidas e usa Secrets como alternativa. O token
+é aceito somente em Secrets. Nenhum valor é gravado no código ou impresso
+pelo script de validação.
+
+A primeira execução remota aprovou os testes e a cobertura, mas parou antes
+do scanner porque os identificadores não estavam em Variables. Depois, o
+usuário cadastrou os identificadores em Secrets; o workflow foi adaptado para
+ler essa configuração sem exigir novo cadastro.
+
+Fontes: [plano OSS](https://docs.sonarsource.com/sonarqube-cloud/administering-sonarcloud/managing-subscription/subscription-plans#oss-plan),
+[limitações de branches do SonarCloud](https://docs.sonarsource.com/sonarqube-cloud/analyzing-source-code/branch-analysis/branch-analysis).
 
 ## Validação local
 

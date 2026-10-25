@@ -34,11 +34,11 @@ jobs:
         if: github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')
         env:
           SONAR_TOKEN: ${{ secrets.INVENTORY_SONAR_TOKEN }}
-          SONAR_ORGANIZATION: ${{ vars.INVENTORY_SONAR_ORGANIZATION }}
-          SONAR_PROJECT_KEY: ${{ vars.INVENTORY_SONAR_PROJECT_KEY }}
+          SONAR_ORGANIZATION: ${{ vars.INVENTORY_SONAR_ORGANIZATION || secrets.INVENTORY_SONAR_ORGANIZATION }}
+          SONAR_PROJECT_KEY: ${{ vars.INVENTORY_SONAR_PROJECT_KEY || secrets.INVENTORY_SONAR_PROJECT_KEY }}
         run: |
           if [ -z "$SONAR_TOKEN" ] || [ -z "$SONAR_ORGANIZATION" ] || [ -z "$SONAR_PROJECT_KEY" ]; then
-            echo 'Configure o projeto Sonar do estoque e um plano com analise de branches.'
+            echo 'Configure INVENTORY_SONAR_TOKEN em Secrets e os identificadores Sonar em Variables ou Secrets.'
             exit 1
           fi
           mvn -B -f services/inventory/pom.xml org.sonarsource.scanner.maven:sonar-maven-plugin:5.1.0.4751:sonar \
