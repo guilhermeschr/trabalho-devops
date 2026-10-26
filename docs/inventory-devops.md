@@ -13,7 +13,8 @@ URL ou aprovação do Sonar é presumido por este documento.
 - [x] Testes automatizados, PostgreSQL/Testcontainers e JaCoCo no Maven.
 - [x] Workflow, Dockerfiles e script de CD escritos.
 - [x] Prometheus, alertas e dashboard Grafana versionados.
-- [ ] Projeto Sonar configurado, análise e Quality Gate aprovados remotamente.
+- [x] Projeto Sonar OSS configurado; análise e Quality Gate da feature aprovados remotamente.
+- [ ] Branch principal do Sonar alinhada a main e análise inicial de main/develop validada.
 - [ ] Imagens publicadas no GHCR pelo workflow.
 - [ ] DEV e HOMOL provisionados e deploys aprovados remotamente.
 - [ ] URLs DEV/HOMOL e dashboard preenchidos com endereços reais.
@@ -54,7 +55,7 @@ público, a opção gratuita é uma organização no plano OSS, que permite aná
 de branches e PRs. A organização OSS criada para o estoque é
 `danielhoepers-devops`, e o projeto público é `danielhoepers-devops_inventory`.
 O workflow exige um plano com suporte às branches analisadas; não ignora um
-Quality Gate reprovado. A análise remota ainda precisa ser validada.
+Quality Gate reprovado. A análise remota da feature foi aprovada; main/develop ainda precisam de validação.
 
 Configuração no repositório GitHub:
 
@@ -99,6 +100,19 @@ export JAVA_HOME=$(/usr/libexec/java_home -v 21)
 export PATH="$JAVA_HOME/bin:$PATH"
 mvn -B -f services/inventory/pom.xml verify
 ```
+
+## Validação remota da feature
+
+Em 2026-10-25, a [execução Inventory 40221732500](https://github.com/guilhermeschr/trabalho-devops/actions/runs/40221732500)
+terminou com sucesso no commit `69bc788` da `feature/inventory-devops`.
+Passaram 23 testes unitários, 10 de integração, os limiares JaCoCo, os testes
+do script de deploy, o Quality Gate do Sonar e os builds Docker Spring/gateway.
+A publicação no GHCR e o deploy foram pulados pela regra da feature.
+
+O Sonar ainda tem `master` como principal, sem análise inicial; o scanner
+avisou que essa referência não existe no Git. Antes de validar DEV/HOMOL,
+alinhe a principal do Sonar a `main` e configure `develop` como branch longa.
+O gate da feature não substitui a validação posterior de main/develop.
 
 ## GHCR
 
