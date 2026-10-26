@@ -14,7 +14,8 @@ URL ou aprovação do Sonar é presumido por este documento.
 - [x] Workflow, Dockerfiles e script de CD escritos.
 - [x] Prometheus, alertas e dashboard Grafana versionados.
 - [x] Projeto Sonar OSS configurado; análise e Quality Gate da feature aprovados remotamente.
-- [ ] Branch principal do Sonar alinhada a main e análise inicial de main/develop validada.
+- [x] Principal do Sonar alinhada a main; develop incluída no padrão de branches longas.
+- [ ] Análise inicial de main/develop validada.
 - [ ] Imagens publicadas no GHCR pelo workflow.
 - [ ] DEV e HOMOL provisionados e deploys aprovados remotamente.
 - [ ] URLs DEV/HOMOL e dashboard preenchidos com endereços reais.
@@ -109,10 +110,20 @@ Passaram 23 testes unitários, 10 de integração, os limiares JaCoCo, os testes
 do script de deploy, o Quality Gate do Sonar e os builds Docker Spring/gateway.
 A publicação no GHCR e o deploy foram pulados pela regra da feature.
 
-O Sonar ainda tem `master` como principal, sem análise inicial; o scanner
-avisou que essa referência não existe no Git. Antes de validar DEV/HOMOL,
-alinhe a principal do Sonar a `main` e configure `develop` como branch longa.
-O gate da feature não substitui a validação posterior de main/develop.
+Em 2026-10-26, a principal do Sonar foi alinhada a `main` e o padrão longo
+foi configurado como `^(develop|(branch|release)-.*)$`. A segunda tentativa
+da mesma execução também passou em testes, cobertura, Quality Gate e builds
+Docker, sem o aviso de referência `master` ausente. A publicação das imagens
+e o deploy permaneceram pulados. Main/develop ainda não têm análise inicial;
+o gate da feature não substitui essa validação posterior.
+
+### Restrição de custo da hospedagem
+
+Em 2026-10-26, o usuário definiu que toda a hospedagem deve ser gratuita.
+A arquitetura Render descrita abaixo é a proposta anterior e depende de
+serviços privados que não têm plano Free. Ela não deve ser provisionada como
+está. Uma alternativa gratuita com isolamento real de rede ainda precisa ser
+selecionada e validada; não houve contratação, merge ou deploy.
 
 ## GHCR
 
