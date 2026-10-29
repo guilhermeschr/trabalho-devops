@@ -22,10 +22,22 @@ URL ou aprovação do Sonar é presumido por este documento.
 - [ ] Prometheus coletando dados reais e Grafana exibindo tráfego.
 - [ ] Execuções do pipeline e evidências anexadas à entrega.
 
+## Validação da alteração de 2026-10-28
+
+`mvn -B -f services/inventory/pom.xml verify` com Java 21 e Docker passou:
+23 testes unitários e 10 de integração, nenhum ignorado. Os testes de integração
+confirmam diretamente no Spring o débito com token, rejeição sem token e os
+contratos existentes. JaCoCo: 97,06% instruções, 96,08% branches, 96,58% linhas
+e 97,00% métodos, acima dos limiares de 50%.
+Os 9 testes do controle de deploy passaram, incluindo a implantação de apenas
+um serviço e a rejeição de débito público sem token (403). Os testes rejeitam
+404 nessa rota, pois ela deve estar acessível diretamente. Não houve validação
+em URL Render, push ou deploy nesta alteração.
+
 ## Git Flow e versão
 
 `feature/*` → PR para `develop` (DEV) → PR para `main` (HOMOL).
-O workflow executa build/testes/cobertura e Sonar; o build das imagens depende
+O workflow executa build/testes/cobertura e Sonar; o build da imagem depende
 do Quality Gate. PRs e features nunca publicam nem implantam.
 PRs de forks, incluindo Dependabot sem secrets próprios, executam os testes
 sem Sonar. Essa execução não comprova análise Sonar: o push posterior em
@@ -117,13 +129,15 @@ Docker, sem o aviso de referência `master` ausente. A publicação das imagens
 e o deploy permaneceram pulados. Main/develop ainda não têm análise inicial;
 o gate da feature não substitui essa validação posterior.
 
-### Restrição de custo da hospedagem
+### Hospedagem direta do Inventory
 
-Em 2026-10-26, o usuário definiu que toda a hospedagem deve ser gratuita.
-A arquitetura Render descrita abaixo é a proposta anterior e depende de
-serviços privados que não têm plano Free. Ela não deve ser provisionada como
-está. Uma alternativa gratuita com isolamento real de rede ainda precisa ser
-selecionada e validada; não houve contratação, merge ou deploy.
+Em 2026-10-28, foi aprovado publicar somente o Inventory como Web Service
+público no Render, sem Nginx dedicado, preservando a autenticação. O pipeline
+passa a construir e implantar apenas a imagem Spring. O Compose local e o
+Nginx compartilhado permanecem iguais, assim como todos os outros serviços.
+A alteração foi preparada localmente; não representa provisionamento ou deploy.
+Bancos CQRS e RabbitMQ continuam necessários e seu provedor ainda depende da
+escolha do grupo. Não há contratação de recursos nesta alteração.
 
 ## GHCR
 
@@ -134,7 +148,6 @@ para publicar no CI. A imagem Linux amd64 usa contexto Docker da raiz.
 Imagens resultantes neste repositório:
 
 - `ghcr.io/guilhermeschr/trabalho-devops-inventory`
-- `ghcr.io/guilhermeschr/trabalho-devops-inventory-gateway`
 
 Por padrão o pacote pode ser privado. Para o Render conseguir baixá-lo,
 configure uma credencial do registro com `read:packages`, ou torne o pacote
@@ -142,45 +155,39 @@ público intencionalmente. Nunca grave essa credencial no repositório.
 
 ## Rede e serviços no Render
 
-Para **cada** ambiente, crie os dois serviços abaixo na mesma região/workspace.
-O nome exato é livre, mas registre os IDs no GitHub Environment correspondente.
+Para cada ambiente, use **um Web Service público Spring**, sem gateway dedicado:
 
-| Ambiente | Private Service Spring | Web Service Nginx |
-|---|---|---|
-| DEV | `inventory-dev` | `inventory-dev-gateway` |
-| HOMOL | `inventory-homol` | `inventory-homol-gateway` |
+| Ambiente | Web Service |
+|---|---|
+| DEV | `inventory-dev` |
+| HOMOL | `inventory-homol` |
 
-Ambos são serviços **de imagem existente** (image-backed), usando as duas
-imagens GHCR. Não configure build automático a partir de branches no Render:
-o GitHub aprova e publica; o script solicita o digest aprovado pela API Render.
-Um primeiro build aprovado no GHCR é necessário antes de criar esses serviços.
-O serviço privado exige um plano Render compatível; confirme o custo no painel.
-Nenhuma contratação foi realizada por esta implementação.
+O CD existente usa serviço de imagem existente (image-backed), com a imagem
+GHCR do Inventory. O GitHub aprova e publica; o script solicita o digest
+aprovado pela API Render. Um primeiro build aprovado no GHCR é necessário.
+Não habilite deploy automático de branches no Render em paralelo ao CD.
+Selecione apenas uma opção gratuita disponível no painel antes de provisionar.
 
 Spring escuta em `0.0.0.0` na `PORT` do ambiente (ou INVENTORY_PORT, padrão 3000).
-Use `/actuator/health/readiness` no health check. Obtenha host/porta privados
-no painel do serviço Spring. Configure no gateway:
+Use `/actuator/health/readiness` no health check e a origem HTTPS do próprio
+Web Service em `INVENTORY_APP_URL`. Não existem `INVENTORY_PRIVATE_HOST`,
+`INVENTORY_PRIVATE_PORT` ou serviço Nginx nessa configuração.
 
-- `INVENTORY_PRIVATE_HOST`: hostname privado, sem protocolo ou porta.
-- `INVENTORY_PRIVATE_PORT`: porta do Spring, igual à sua configuração efetiva.
-- `PORT`: porta HTTP do Nginx (Render fornece; padrão da imagem 10000).
+| Rota direta | Proteção |
+|---|---|
+| `POST /api/v1/inventory` | JWT |
+| `GET /api/v1/inventory/{productId}` | JWT |
+| `POST /internal/v1/inventory/debit` | `X-Internal-Token` (403 sem token válido) |
+| `GET /health`, `/actuator/health` e `/actuator/health/readiness` | Sem token; sem detalhes dos bancos |
+| `GET /actuator/prometheus` | Bearer `METRICS_TOKEN` |
+| `/docs`, `/docs-json` e recursos Swagger | Habilitados apenas fora de produção |
 
-O gateway usa allowlist de rotas de estoque, Swagger e os dois endpoints
-operacionais necessários; todo o resto retorna 404. Ele remove o header
-`X-Internal-Token` recebido externamente e não encaminha `/internal/`.
-O serviço Spring privado não possui URL pública. Portanto a proteção de rede
-não depende de manter o token interno em segredo.
-
-Pedidos precisa estar na mesma rede privada Render e usar
-`INVENTORY_SERVICE_URL=http://<host-privado>:<porta>`. Essa integração precisa
-ser combinada com o grupo. Um Pedidos publicado em outro provedor não alcança
-essa rede automaticamente; nesse caso é necessário projetar conectividade
-privada entre provedores, ou hospedar os serviços juntos. Nunca substitua a
-URL privada por uma URL pública do Spring para contornar o problema.
-
-Fontes: [serviços privados](https://render.com/docs/private-services),
-[imagens e digests](https://render.com/docs/deploying-an-image),
-[API de deploy](https://api-docs.render.com/reference/create-deploy).
+A publicação direta mantém os caminhos e filtros existentes do Spring. O
+prefixo `/internal/` continua por compatibilidade; essa rota agora é alcançável
+pela internet e sua autorização depende do token, sem isolamento de rede HTTP.
+Pedidos poderá apontar `INVENTORY_SERVICE_URL` para a origem HTTPS do Inventory
+e enviar o token correspondente. Essa alteração cabe ao responsável de Pedidos;
+nenhum arquivo desse serviço foi modificado.
 
 ## Bancos, RabbitMQ e configuração do Spring
 
@@ -220,16 +227,16 @@ cada um, sem sobrescrever valores de outros serviços:
 | Tipo | Nome | Conteúdo |
 |---|---|---|
 | Secret | `INVENTORY_RENDER_API_KEY` | API key Render com acesso aos serviços |
-| Variable | `INVENTORY_RENDER_SERVICE_ID` | ID `srv-...` do Spring privado |
-| Variable | `INVENTORY_RENDER_GATEWAY_SERVICE_ID` | ID `srv-...` do Nginx público |
-| Variable | `INVENTORY_APP_URL` | Origem HTTPS pública do gateway, sem caminho |
+| Variable | `INVENTORY_RENDER_SERVICE_ID` | ID `srv-...` do Web Service Spring público |
+| Variable | `INVENTORY_APP_URL` | Origem HTTPS pública do Spring, sem caminho |
 
 A API key é necessária para consultar o **deploy específico** até `live`.
 Um deploy hook sozinho apenas confirma aceite; por isso `RENDER_DEPLOY_HOOK`
-não é usado nesta implementação. O script primeiro implanta Spring, aguarda
-`live`, depois faz o mesmo com o gateway. Finalmente exige readiness UP,
-401 sem JWT nas rotas públicas, 401 sem token nas métricas, 404 em caminhos
-internos e Swagger 200 em DEV/404 em HOMOL. Falha ou timeout falham o job.
+não é usado nesta implementação. O script implanta somente Spring e aguarda
+`live`. Finalmente exige readiness UP, 401 sem JWT nas rotas de negócio,
+401 sem token nas métricas, 403 no POST de débito sem token interno e
+Swagger 200 em DEV/404 em HOMOL. O POST de verificação usa corpo vazio e
+nenhuma credencial, sem movimentar estoque. Falha ou timeout falham o job.
 O script não efetua rollback automático. Se necessário, escolha um digest
 anterior aprovado e implante pelo painel; não apague bancos/volumes.
 
@@ -250,9 +257,9 @@ regras de notificação no Grafana, ainda não configurados.
 |---|---|
 | Repositório | https://github.com/guilhermeschr/trabalho-devops |
 | Workflow e Quality Gate | URL da execução e análise por ambiente |
-| DEV público | Pendente — URL real do gateway |
-| HOMOL público | Pendente — URL real do gateway |
-| Imagens | Digest de Spring e gateway de cada deploy |
+| DEV público | Pendente — URL real do Spring |
+| HOMOL público | Pendente — URL real do Spring |
+| Imagens | Digest do Spring de cada deploy |
 | Prometheus | Targets dos dois ambientes UP |
 | Grafana | URL acessível ao avaliador e captura com dados reais |
 | Git Flow / SemVer | PRs feature → develop → main, versão e commit entregues |

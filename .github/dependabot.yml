@@ -11,11 +11,6 @@ updates:
     target-branch: develop
     schedule:
       interval: weekly
-  - package-ecosystem: docker
-    directory: /infra/render/inventory
-    target-branch: develop
-    schedule:
-      interval: weekly
   - package-ecosystem: github-actions
     directory: /
     target-branch: develop

@@ -1,4 +1,4 @@
-"""Render: implanta imagens por digest e valida o deploy especifico e o gateway."""
+"""Render: implanta o Inventory por digest e valida o acesso direto ao Spring."""
 import json
 import os
 import re
@@ -76,8 +76,6 @@ def verify(base, environment, timeout=180):
     else:
         raise TimeoutError('Readiness publica nao ficou UP')
     expected = {
-        '/internal/v1/inventory/debit': 404,
-        '/internal;tracking=test/v1/inventory/debit': 404,
         '/api/v1/inventory': 401,
         '/actuator/prometheus': 401,
         '/docs': 200 if environment == 'dev' else 404,
@@ -87,18 +85,20 @@ def verify(base, environment, timeout=180):
         actual, _ = request(base + path)
         if actual != status:
             raise RuntimeError(f'Validacao {path}: esperado {status}, recebido {actual}')
-    print('Gateway: readiness, JWT, metricas, isolamento e Swagger validados.')
+    # POST sem credencial/corpo de negocio: valida a rota sem movimentar estoque.
+    actual, _ = request(base + '/internal/v1/inventory/debit', payload={})
+    if actual != 403:
+        raise RuntimeError(f'Validacao do token interno: esperado 403, recebido {actual}')
+    print('Inventory: readiness, JWT, metricas, token interno e Swagger validados.')
 
 
 def main():
-    keys = ('RENDER_API_KEY', 'RENDER_SERVICE_ID', 'RENDER_GATEWAY_SERVICE_ID',
-            'IMAGE', 'GATEWAY_IMAGE', 'APP_URL', 'APP_ENV')
+    keys = ('RENDER_API_KEY', 'RENDER_SERVICE_ID', 'IMAGE', 'APP_URL', 'APP_ENV')
     cfg = {key: os.environ.get(key, '') for key in keys}
     missing = [key for key, value in cfg.items() if not value]
     if missing:
         raise ValueError('Configuracao ausente: ' + ', '.join(missing))
     deploy(cfg['RENDER_SERVICE_ID'], cfg['IMAGE'], cfg['RENDER_API_KEY'])
-    deploy(cfg['RENDER_GATEWAY_SERVICE_ID'], cfg['GATEWAY_IMAGE'], cfg['RENDER_API_KEY'])
     verify(cfg['APP_URL'], cfg['APP_ENV'])
 
 

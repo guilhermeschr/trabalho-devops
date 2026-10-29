@@ -37,12 +37,13 @@ class DeploymentTest(unittest.TestCase):
         with self.assertRaises(TimeoutError):
             deploy.deploy('srv-123', IMAGE, 'test-token')
 
-    def responses(self, environment, exposed_internal=False, swagger_wrong=False):
+    def responses(self, environment, internal_status=403, swagger_wrong=False):
         def respond(url, **kwargs):
             if url.endswith('/actuator/health/readiness'):
                 return 200, b'{"status":"UP"}'
             if '/internal' in url:
-                return (403 if exposed_internal else 404), b''
+                self.assertEqual({}, kwargs.get('payload'))
+                return internal_status, b''
             if url.endswith('/docs') or url.endswith('/docs-json'):
                 status = 200 if environment == 'dev' else 404
                 return (200 if swagger_wrong else status), b''
@@ -54,10 +55,24 @@ class DeploymentTest(unittest.TestCase):
             with patch.object(deploy, 'request', side_effect=self.responses(environment)):
                 deploy.verify('https://inventory.example', environment)
 
-    def test_internal_exposure_fails(self):
-        with patch.object(deploy, 'request', side_effect=self.responses('dev', exposed_internal=True)):
-            with self.assertRaises(RuntimeError):
-                deploy.verify('https://inventory.example', 'dev')
+    def test_internal_route_requires_token_and_must_be_reachable(self):
+        for status in (200, 404, 500):
+            with self.subTest(status=status), patch.object(
+                deploy, 'request', side_effect=self.responses('dev', internal_status=status)
+            ):
+                with self.assertRaises(RuntimeError):
+                    deploy.verify('https://inventory.example', 'dev')
+
+    @patch.dict('os.environ', {
+        'RENDER_API_KEY': 'test-token', 'RENDER_SERVICE_ID': 'srv-123',
+        'IMAGE': IMAGE, 'APP_URL': 'https://inventory.example', 'APP_ENV': 'dev',
+    }, clear=True)
+    @patch.object(deploy, 'verify')
+    @patch.object(deploy, 'deploy')
+    def test_deploys_only_inventory_without_gateway_configuration(self, start, verify):
+        deploy.main()
+        start.assert_called_once_with('srv-123', IMAGE, 'test-token')
+        verify.assert_called_once_with('https://inventory.example', 'dev')
 
     def test_homol_swagger_exposure_fails(self):
         with patch.object(deploy, 'request', side_effect=self.responses('homol', swagger_wrong=True)):

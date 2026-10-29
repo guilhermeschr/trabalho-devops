@@ -1,8 +1,8 @@
 # Especificação do Sistema de Delivery com Microsserviços
 
 **Status:** especificação de referência para implementação
-**Versão:** 2.12
-**Última atualização:** 2026-10-25
+**Versão:** 2.13
+**Última atualização:** 2026-10-28
 **Idioma:** português
 **Objetivo:** orientar a construção, execução e validação de um sistema simples de delivery com foco em DevOps.
 
@@ -10,6 +10,7 @@
 
 | Versão | Data | Alteração |
 |---|---|---|
+| 2.13 | 2026-10-28 | Somente Estoque cloud: Spring público no Render sem Nginx dedicado; rotas acessíveis diretamente preservando JWT, token interno e métricas; CD de uma imagem; Compose e demais serviços preservados |
 | 2.12 | 2026-10-25 | CI do Estoque aceita identificadores Sonar em Variables ou Secrets, com precedência de Variables; token permanece somente em Secrets; documentado plano OSS para o repositório público |
 | 2.11 | 2026-10-25 | T2 Estoque: porta PORT, Actuator/Prometheus com token próprio, CI/CD por digest, Sonar, Git Flow, gateway cloud e monitoramento; configuração externa pendente (seção 20) |
 | 2.10 | 2026-09-23 | Adicionada a coleção Bruno `docs/bruno/` (YAML OpenCollection) com asserção do HTTP esperado por requisição, executável pelo Runner ou por `npx @usebruno/cli run` (seção 13) |
@@ -133,6 +134,10 @@ flowchart LR
 ~~~
 
 ### 2.4 Regras de rede
+
+As regras abaixo descrevem o Compose local e os demais serviços. A exceção
+aprovada para o Estoque cloud (seção 20) usa acesso público direto ao Spring,
+inclusive `/internal/v1/inventory/debit`, mantendo `X-Internal-Token`.
 
 - Somente o Nginx deverá publicar portas HTTP para o cliente.
 - Bancos, RabbitMQ e endpoints internos não deverão ser publicados para acesso externo.
@@ -488,7 +493,10 @@ Regras:
 
 ## 4. Rotas internas
 
-As rotas internas não deverão ser configuradas no Nginx e não poderão ser chamadas por clientes externos.
+No Compose local, as rotas internas não deverão ser configuradas no Nginx
+e não poderão ser chamadas por clientes externos. Somente no Estoque cloud,
+o débito fica acessível pela URL pública direta, com `X-Internal-Token`
+obrigatório (seção 20). Produtos e Pedidos não são alterados por essa exceção.
 
 ### 4.1 Consultar produto internamente
 
@@ -1542,15 +1550,21 @@ SonarCloud com Quality Gate, build Docker e publicação exclusiva do estoque
 no GHCR; somente pushes em develop/main implantam, por digest. PRs de forks
 executam os testes sem acesso aos secrets e não são considerados evidência de
 Sonar aprovado. O CD consulta o deploy específico na API Render até `live` e
-verifica readiness, JWT, bloqueio interno e Swagger na URL pública.
+verifica readiness, JWT, token interno, métricas e Swagger na URL pública.
 Os identificadores `INVENTORY_SONAR_ORGANIZATION` e
 `INVENTORY_SONAR_PROJECT_KEY` são lidos de Variables ou, quando vazias,
 de Secrets do repositório. `INVENTORY_SONAR_TOKEN` permanece somente em Secrets.
 O projeto público usa uma organização no plano OSS, com suporte a branches.
 
-Cloud: Spring é um Render Private Service, acessível por Pedidos na rede
-privada da mesma região/workspace. Nginx público dedicado usa allowlist e não
-encaminha `/internal/`. Token interno complementa o isolamento de rede.
+Cloud: somente Estoque usa um Render Web Service público, com acesso direto
+ao Spring pela `PORT`, sem Nginx dedicado. Todas as rotas habilitadas ficam
+acessíveis na URL pública, inclusive `/internal/v1/inventory/debit`. O prefixo
+`/internal/` é preservado por compatibilidade e requer `X-Internal-Token`
+(403 ausente/incorreto); não há isolamento de rede HTTP nessa hospedagem.
+JWT e token de métricas permanecem obrigatórios. O CD publica e implanta
+somente a imagem Spring; não exige imagem ou ID de serviço de gateway.
+Pedidos poderá usar a origem HTTPS do Inventory, mediante configuração pelo
+responsável desse serviço. Nenhum outro microsserviço é modificado.
 A configuração cloud é adicional e não altera o Compose/gateway local.
 DEV e HOMOL usam quatro bancos lógicos (write/read por ambiente), usuários e
 vhosts RabbitMQ separados. Swagger fica habilitado em DEV e desabilitado em

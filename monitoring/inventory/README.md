@@ -1,6 +1,6 @@
 # Monitoramento de Estoque
 
-O Prometheus coleta as URLs públicas dos gateways usando tokens exclusivos de
+O Prometheus coleta as URLs públicas diretas do Inventory usando tokens exclusivos de
 métricas. O Grafana provisiona automaticamente o dashboard Inventory.
 Os dois serviços desta configuração escutam apenas em localhost.
 
