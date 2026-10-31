@@ -192,8 +192,8 @@ Não use `git add -A` ou `git add .` quando isso puder incluir alterações não
 
 ## 8. Padrão de branches
 
-Para o T2 do Inventory, usar `develop` para DEV, `homolog` para HOMOL e
-`main` para a versão aprovada, sem deploy de produção configurado.
+Para o T2 do Inventory, seguir o enunciado: `develop` representa DEV e
+`main` representa HOMOL. Não usar outra branch como destino de homologação.
 Novas funcionalidades usam `feature/<descricao-em-minusculas>`.
 Esse mapeamento aplica-se ao workflow do Inventory; não altera os demais serviços.
 Use descrição específica, sem espaços ou acentos. Não use `codex/`.

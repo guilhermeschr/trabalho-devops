@@ -1,7 +1,7 @@
 # Especificação do Sistema de Delivery com Microsserviços
 
 **Status:** especificação de referência para implementação
-**Versão:** 2.14
+**Versão:** 2.15
 **Última atualização:** 2026-10-31
 **Idioma:** português
 **Objetivo:** orientar a construção, execução e validação de um sistema simples de delivery com foco em DevOps.
@@ -10,6 +10,7 @@
 
 | Versão | Data | Alteração |
 |---|---|---|
+| 2.15 | 2026-10-31 | Alinhado Inventory ao enunciado T2: develop/DEV e main/HOMOL; homolog deixa de acionar o workflow; monitoramento ainda preparado e CD depende de configuração externa |
 | 2.14 | 2026-10-31 | CI do Inventory separa develop/DEV, homolog/HOMOL e main/versão aprovada; main não publica nem implanta; deploy condicionado à habilitação futura por Variable |
 | 2.13 | 2026-10-28 | Somente Estoque cloud: Spring público no Render sem Nginx dedicado; rotas acessíveis diretamente preservando JWT, token interno e métricas; CD de uma imagem; Compose e demais serviços preservados |
 | 2.12 | 2026-10-25 | CI do Estoque aceita identificadores Sonar em Variables ou Secrets, com precedência de Variables; token permanece somente em Secrets; documentado plano OSS para o repositório público |
@@ -1532,10 +1533,9 @@ inesperadas), o repositório TypeORM e o contrato OpenAPI, com limiar Jest de 50
 ## 20. Trabalho Prático 2 — Estoque
 
 O T2 amplia o escopo anterior com CI/CD e cloud, mantendo Estoque no monorepo.
-Para o Inventory, o fluxo aprovado usa `feature/*` → `develop` (DEV) →
-`homolog` (HOMOL) → `main` (versão aprovada). `main` executa CI sem publicação
-ou deploy; produção não é configurada. Essa decisão substitui o mapeamento
-anterior de main/HOMOL somente no workflow do Inventory.
+Para o Inventory, o fluxo segue o enunciado T2: `feature/*` → `develop` (DEV) →
+`main` (HOMOL). A branch histórica `homolog` não aciona o workflow e não é
+necessária para novas entregas. Produção não integra o escopo do trabalho.
 
 `PORT` tem precedência sobre `INVENTORY_PORT` (padrão 3000). Actuator expõe
 somente health e prometheus. `/actuator/health/readiness` verifica estado de
@@ -1550,9 +1550,9 @@ histogramas HTTP. Nenhum detalhe de saúde é exposto.
 
 O workflow `.github/workflows/inventory.yml` executa verify com Java 21,
 SonarCloud com Quality Gate, build Docker e publicação exclusiva do estoque
-no GHCR; somente pushes em develop/homolog publicam imagens. Tags usam
+no GHCR; somente pushes em develop/main publicam imagens. Tags usam
 `X.Y.Z-dev-<sha>` e `X.Y.Z-homol-<sha>`. O deploy por digest mapeia develop
-para Environment DEV e homolog para HOMOL, condicionado também à Variable de
+para Environment DEV e main para HOMOL, condicionado também à Variable de
 repositório `INVENTORY_DEPLOY_ENABLED=true`. Sem essa habilitação, o deploy
 fica pulado para tratar a hospedagem em uma etapa posterior. PRs de forks
 executam os testes sem acesso aos secrets e não são considerados evidência de
@@ -1573,9 +1573,11 @@ somente a imagem Spring; não exige imagem ou ID de serviço de gateway.
 Pedidos poderá usar a origem HTTPS do Inventory, mediante configuração pelo
 responsável desse serviço. Nenhum outro microsserviço é modificado.
 A configuração cloud é adicional e não altera o Compose/gateway local.
-DEV e HOMOL usam quatro bancos lógicos (write/read por ambiente), usuários e
-vhosts RabbitMQ separados. Swagger fica habilitado em DEV e desabilitado em
-HOMOL (`SWAGGER_ENABLED=false`, `NODE_ENV=production`).
+DEV e HOMOL usam quatro bancos lógicos (write/read por ambiente) e mensageria
+separada por vhost/instância. Na implantação atual, o usuário optou pela mesma
+credencial PostgreSQL nos dois ambientes; isso separa os dados por banco,
+mas não isola as permissões entre ambientes. Swagger fica habilitado em DEV
+e desabilitado em HOMOL (`SWAGGER_ENABLED=false`, `NODE_ENV=production`).
 
 Prometheus e Grafana têm configuração adicional em `monitoring/inventory/`.
 Provisionamento, secrets, plano Sonar, URLs, dashboards com dados reais e
