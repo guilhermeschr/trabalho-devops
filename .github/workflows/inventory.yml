@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: actions/setup-java@v4
@@ -67,7 +67,7 @@ jobs:
       image: ${{ steps.names.outputs.image }}
       digest: ${{ steps.app.outputs.digest }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Nomes e versao
         id: names
         shell: python
@@ -119,6 +119,6 @@ jobs:
       APP_ENV: ${{ github.ref == 'refs/heads/main' && 'homol' || 'dev' }}
       IMAGE: ${{ needs.image.outputs.image }}@${{ needs.image.outputs.digest }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Implantar e validar o Inventory
         run: python3 scripts/deploy-inventory.py
