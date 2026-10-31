@@ -31,9 +31,11 @@ import org.testcontainers.junit.jupiter.*;
       "NODE_ENV=development",
       "inventory.jwt-secret=test-jwt-secret",
       "inventory.internal-token=test-internal",
+      "inventory.metrics-token=test-metrics",
       "inventory.rabbitmq.url=amqp://guest:guest@localhost:5672",
       "spring.rabbitmq.listener.simple.auto-startup=false"
     })
+@org.springframework.boot.test.autoconfigure.actuate.observability.AutoConfigureObservability
 @AutoConfigureMockMvc
 class InventoryIT {
   @Container
@@ -75,6 +77,19 @@ class InventoryIT {
             .withSubject("user")
             .withExpiresAt(Instant.now().plusSeconds(120))
             .sign(Algorithm.HMAC256("test-jwt-secret"));
+  }
+
+  @Test
+  void actuatorMetricsRequireDedicatedTokenAndReadinessChecksDatabases() throws Exception {
+    http.perform(get("/actuator/prometheus")).andExpect(status().isUnauthorized());
+    http.perform(get("/actuator/prometheus").header("Authorization", jwt()))
+        .andExpect(status().isUnauthorized());
+    http.perform(get("/actuator/prometheus").header("Authorization", "Bearer test-metrics"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(org.hamcrest.Matchers.containsString("jvm_memory_used_bytes")));
+    http.perform(get("/actuator/health/readiness"))
+        .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("UP"));
+    http.perform(get("/actuator/env")).andExpect(status().isNotFound());
   }
 
   @Test
