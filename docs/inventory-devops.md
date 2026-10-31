@@ -15,7 +15,7 @@ URL ou aprovação do Sonar é presumido por este documento.
 - [x] Prometheus, alertas e dashboard Grafana versionados.
 - [x] Projeto Sonar OSS configurado; análise e Quality Gate da feature aprovados remotamente.
 - [x] Principal do Sonar alinhada a main; develop incluída no padrão de branches longas.
-- [ ] Análise inicial de main/develop validada.
+- [ ] Análise inicial de main/develop/homolog validada e homolog configurada como branch longa.
 - [ ] Imagens publicadas no GHCR pelo workflow.
 - [ ] DEV e HOMOL provisionados e deploys aprovados remotamente.
 - [ ] URLs DEV/HOMOL e dashboard preenchidos com endereços reais.
@@ -34,21 +34,41 @@ um serviço e a rejeição de débito público sem token (403). Os testes rejeit
 404 nessa rota, pois ela deve estar acessível diretamente. Não houve validação
 em URL Render, push ou deploy nesta alteração.
 
+## Validação da alteração de 2026-10-31
+
+Actionlint aprovou o workflow. Uma matriz de 45 cenários verificou pushes,
+PRs e execuções manuais nas branches develop, homolog, main, feature e outra,
+com deploy habilitado, desabilitado e sem configuração. Somente pushes em
+develop/homolog publicam; somente esses pushes, com habilitação explícita,
+podem implantar em DEV/HOMOL. Maven verify passou com 23 testes unitários,
+10 de integração e todos os limiares JaCoCo; os 9 testes de controle de deploy
+também passaram. A validação é local; não houve push, criação de branch,
+merge, configuração remota do Sonar/Environments ou deploy nesta alteração.
+
 ## Git Flow e versão
 
-`feature/*` → PR para `develop` (DEV) → PR para `main` (HOMOL).
+`feature/*` → PR para `develop` (DEV) → PR para `homolog` (HOMOL) → `main` (versão aprovada).
+
+O workflow aceita pushes em `main`, `develop`, `homolog` e `feature/*`,
+e PRs destinados a `main`, `develop` e `homolog`, limitados aos caminhos do Inventory.
+Somente pushes em `develop`/`homolog` publicam imagens. `main`, features, PRs e
+execuções manuais apenas validam e constroem, sem publicar nem implantar.
+`main` não tem ambiente de deploy configurado.
+O job de deploy exige também a Variable de repositório
+`INVENTORY_DEPLOY_ENABLED=true`; ausente ou diferente de `true`, fica pulado.
+Essa chave permite configurar e validar o CI agora e habilitar o deploy depois.
 O workflow executa build/testes/cobertura e Sonar; o build da imagem depende
 do Quality Gate. PRs e features nunca publicam nem implantam.
 PRs de forks, incluindo Dependabot sem secrets próprios, executam os testes
 sem Sonar. Essa execução não comprova análise Sonar: o push posterior em
-`develop`/`main` exige o gate antes de publicar/deployar. Nunca use
+`develop`/`homolog` exige o gate antes de publicar/deployar. Nunca use
 `pull_request_target` para executar código de terceiros com secrets.
 `workflow_dispatch` valida e constrói sem publicar ou implantar.
 
 A versão oficial está em `services/inventory/pom.xml`, inicialmente `0.1.0`.
 Incremente PATCH para correção compatível, MINOR para funcionalidade compatível
 e MAJOR para quebra de contrato; registre a mudança no README/especificação.
-Tags das imagens usam `X.Y.Z-dev-<sha>` em DEV e `X.Y.Z-<sha>` em HOMOL.
+Tags das imagens usam `X.Y.Z-dev-<sha>` em DEV e `X.Y.Z-homol-<sha>` em HOMOL.
 O SHA distingue builds da mesma versão. Não se usa `latest` no CD: a referência
 implantada é sempre `imagem@sha256:...`. Tags Git `inventory-vX.Y.Z` podem ser
 criadas na main após a aprovação da versão, somente por solicitação do usuário.
@@ -58,9 +78,10 @@ Os artefatos Maven mantêm a versão do POM; a tag Docker também identifica o c
 
 Crie um projeto exclusivo para Estoque, associado ao mesmo repositório.
 Desative a análise automática do Sonar: a análise será por Maven/CI, com o XML
-do JaCoCo. Configure `main` como principal e `develop` como branch longa
-(padrão de branches longas incluindo `develop`). Inicialize a análise da main
-antes de analisar branches/PRs. Configure a proteção de main/develop para exigir
+do JaCoCo. Mantenha `main` como principal e configure `develop` e `homolog`
+como branches longas (por exemplo, padrão
+`^(develop|homolog|(branch|release)-.*)$`). Inicialize a análise da main
+antes de analisar branches/PRs. Configure a proteção de main/develop/homolog para exigir
 o check Inventory e o Quality Gate; não autorize bypass silencioso do gate.
 
 O plano Free comum só analisa a branch principal. Para este repositório
@@ -68,7 +89,7 @@ público, a opção gratuita é uma organização no plano OSS, que permite aná
 de branches e PRs. A organização OSS criada para o estoque é
 `danielhoepers-devops`, e o projeto público é `danielhoepers-devops_inventory`.
 O workflow exige um plano com suporte às branches analisadas; não ignora um
-Quality Gate reprovado. A análise remota da feature foi aprovada; main/develop ainda precisam de validação.
+Quality Gate reprovado. A análise remota da feature foi aprovada; main/develop/homolog ainda precisam de validação.
 
 Configuração no repositório GitHub:
 
@@ -221,7 +242,7 @@ METRICS_TOKEN é independente, forte e diferente nos dois ambientes.
 ## GitHub Environments e CD
 
 Crie Environments `DEV` e `HOMOL`, sem aprovação manual obrigatória se o T2
-exigir deploy automático. Restrinja DEV a develop e HOMOL a main. Configure em
+exigir deploy automático. Restrinja DEV a develop e HOMOL a homolog. Configure em
 cada um, sem sobrescrever valores de outros serviços:
 
 | Tipo | Nome | Conteúdo |
@@ -229,6 +250,11 @@ cada um, sem sobrescrever valores de outros serviços:
 | Secret | `INVENTORY_RENDER_API_KEY` | API key Render com acesso aos serviços |
 | Variable | `INVENTORY_RENDER_SERVICE_ID` | ID `srv-...` do Web Service Spring público |
 | Variable | `INVENTORY_APP_URL` | Origem HTTPS pública do Spring, sem caminho |
+
+O deploy só será habilitado, em uma etapa posterior, com a Variable de
+repositório `INVENTORY_DEPLOY_ENABLED=true`, após preparar os serviços,
+credenciais e restrições de branches dos Environments. Nenhum deploy é
+habilitado remotamente por esta alteração de arquivos.
 
 A API key é necessária para consultar o **deploy específico** até `live`.
 Um deploy hook sozinho apenas confirma aceite; por isso `RENDER_DEPLOY_HOOK`
@@ -262,6 +288,6 @@ regras de notificação no Grafana, ainda não configurados.
 | Imagens | Digest do Spring de cada deploy |
 | Prometheus | Targets dos dois ambientes UP |
 | Grafana | URL acessível ao avaliador e captura com dados reais |
-| Git Flow / SemVer | PRs feature → develop → main, versão e commit entregues |
+| Git Flow / SemVer | PRs feature → develop → homolog → main, versão e commit entregues |
 
 Não coloque tokens, senhas ou links de deploy com chaves nas evidências.
