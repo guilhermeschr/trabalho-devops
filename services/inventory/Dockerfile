@@ -5,7 +5,7 @@ RUN mvn -B dependency:go-offline
 COPY services/inventory/src ./src
 RUN mvn -B -DskipTests package
 
-FROM eclipse-temurin:21-jre-alpine AS runtime
+FROM eclipse-temurin:24-jre-alpine AS runtime
 WORKDIR /app
 RUN addgroup -S inventory && adduser -S inventory -G inventory
 COPY --from=build /app/target/inventory-service-*.jar app.jar
