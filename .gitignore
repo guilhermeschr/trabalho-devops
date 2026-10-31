@@ -10,3 +10,8 @@ npm-debug.log*
 
 # Java / Maven
 services/inventory/target/
+
+# Configuracao local de monitoramento
+monitoring/inventory/.secrets/
+monitoring/inventory/targets/
+__pycache__/

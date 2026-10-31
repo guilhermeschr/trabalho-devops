@@ -3,6 +3,16 @@
 Aplicação Java 21, Spring Boot 3.5.16 e Maven. Produtos continua em NestJS.
 A migração preserva os contratos HTTP, os eventos RabbitMQ e as tabelas PostgreSQL.
 
+## Trabalho Prático 2
+
+[Configuração de CI/CD, Render e monitoramento](../../docs/inventory-devops.md).
+A porta aceita `PORT` antes de `INVENTORY_PORT`. `/actuator/prometheus` exige
+`Authorization: Bearer <METRICS_TOKEN>`; readiness fica em
+`/actuator/health/readiness`. No Render, o Spring é um Web Service público,
+sem Nginx dedicado. Todas as rotas habilitadas são acessíveis diretamente;
+JWT, `X-Internal-Token` e o token de métricas continuam obrigatórios nas
+respectivas rotas. Os bancos de escrita/leitura e RabbitMQ continuam necessários.
+
 ## Por onde começar
 
 Todas as classes ficam em `src/main/java/br/com/delivery/inventory/`.
@@ -75,7 +85,9 @@ publica portas dos bancos no host.
 
 Swagger: `/docs` e `/docs-json` internamente; pelo gateway,
 `http://localhost:8080/inventory/docs`. `SWAGGER_ENABLED=true` habilita apenas
-fora de produção. As rotas internas continuam bloqueadas no Nginx.
+fora de produção. O gateway local compartilhado continua bloqueando `/internal/`.
+Na hospedagem direta do Inventory, `/internal/v1/inventory/debit` fica acessível
+pela URL pública, exigindo `X-Internal-Token`. Os caminhos não mudam.
 
 ## Dados existentes
 
