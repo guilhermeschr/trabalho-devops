@@ -5,9 +5,8 @@ O estoque permanece em `services/inventory` neste monorepo. O workflow é
 
 ## Estado da entrega
 
-Os arquivos de CI/CD e monitoramento são preparação local. Só marque as etapas
-abaixo após guardar a evidência correspondente. Nenhum serviço remoto, token,
-URL ou aprovação do Sonar é presumido por este documento.
+A lista abaixo distingue arquivos preparados de etapas validadas remotamente.
+Marque novas etapas somente depois de guardar a evidência correspondente.
 
 - [x] Actuator, readiness e Prometheus protegidos por token próprio.
 - [x] Testes automatizados, PostgreSQL/Testcontainers e JaCoCo no Maven.
@@ -15,10 +14,13 @@ URL ou aprovação do Sonar é presumido por este documento.
 - [x] Prometheus, alertas e dashboard Grafana versionados.
 - [x] Projeto Sonar OSS configurado; análise e Quality Gate da feature aprovados remotamente.
 - [x] Principal do Sonar alinhada a main; develop incluída no padrão de branches longas.
-- [ ] Análise inicial de main/develop/homolog validada e homolog configurada como branch longa.
-- [ ] Imagens publicadas no GHCR pelo workflow.
-- [ ] DEV e HOMOL provisionados e deploys aprovados remotamente.
-- [ ] URLs DEV/HOMOL e dashboard preenchidos com endereços reais.
+- [x] Análises de develop/homolog aprovadas; homolog foi configurada como branch longa no fluxo anterior.
+- [ ] Análise inicial de main e promoção definitiva main/HOMOL validadas.
+- [x] Imagens de DEV e da homologação anterior publicadas no GHCR pelo workflow.
+- [x] DEV e HOMOL provisionados no plano Free e deploys manuais validados.
+- [ ] Deploy automático nos dois ambientes configurado e validado.
+- [x] URLs DEV/HOMOL registradas com endereços reais.
+- [ ] Dashboard com dados reais disponível para demonstração.
 - [ ] Prometheus coletando dados reais e Grafana exibindo tráfego.
 - [ ] Execuções do pipeline e evidências anexadas à entrega.
 
@@ -45,25 +47,37 @@ podem implantar em DEV/HOMOL. Maven verify passou com 23 testes unitários,
 também passaram. A validação é local; não houve push, criação de branch,
 merge, configuração remota do Sonar/Environments ou deploy nesta alteração.
 
+## Correção após revisão do enunciado em 2026-10-31
+
+O workflow foi realinhado para develop/DEV e main/HOMOL. Actionlint passou;
+45 cenários de branch/evento/habilitação confirmaram publicação somente em
+pushes de develop/main e deploy apenas com habilitação explícita. Maven verify
+passou com 23 testes unitários, 10 de integração e cobertura JaCoCo aprovada;
+os 9 testes do controle de deploy também passaram. Não houve mudança no
+código de negócio ou nos demais microsserviços.
+
 ## Git Flow e versão
 
-`feature/*` → PR para `develop` (DEV) → PR para `homolog` (HOMOL) → `main` (versão aprovada).
+O enunciado T2 define `feature/*` → PR para `develop` (DEV) → PR para `main` (HOMOL).
+A configuração anterior com branch `homolog` foi substituída após revisar o PDF.
+A branch histórica não precisa ser apagada, mas não dispara o workflow.
 
-O workflow aceita pushes em `main`, `develop`, `homolog` e `feature/*`,
-e PRs destinados a `main`, `develop` e `homolog`, limitados aos caminhos do Inventory.
-Somente pushes em `develop`/`homolog` publicam imagens. `main`, features, PRs e
-execuções manuais apenas validam e constroem, sem publicar nem implantar.
-`main` não tem ambiente de deploy configurado.
-O job de deploy exige também a Variable de repositório
-`INVENTORY_DEPLOY_ENABLED=true`; ausente ou diferente de `true`, fica pulado.
-Essa chave permite configurar e validar o CI agora e habilitar o deploy depois.
-O workflow executa build/testes/cobertura e Sonar; o build da imagem depende
-do Quality Gate. PRs e features nunca publicam nem implantam.
-PRs de forks, incluindo Dependabot sem secrets próprios, executam os testes
-sem Sonar. Essa execução não comprova análise Sonar: o push posterior em
-`develop`/`homolog` exige o gate antes de publicar/deployar. Nunca use
-`pull_request_target` para executar código de terceiros com secrets.
-`workflow_dispatch` valida e constrói sem publicar ou implantar.
+O workflow aceita pushes em `main`, `develop` e `feature/*`, e PRs destinados
+a `main` e `develop`, limitados aos caminhos do Inventory. Somente pushes em
+`develop`/`main` publicam imagens. Features, PRs e execuções manuais apenas
+validam e constroem, sem publicar nem implantar.
+O workflow executa testes/cobertura e Sonar; a imagem depende do Quality Gate.
+PRs de forks e Dependabot sem secrets próprios executam testes sem Sonar;
+essa execução não comprova análise Sonar. Nunca use `pull_request_target`
+para executar código de terceiros com secrets.
+
+O job de deploy mapeia develop para DEV e main para HOMOL. Exige também a
+Variable de repositório `INVENTORY_DEPLOY_ENABLED=true`; ausente ou diferente
+de `true`, fica pulado. A chave só deve ser habilitada após configurar IDs,
+URLs e credenciais dos dois ambientes. Atualmente está desabilitada: os
+primeiros deploys foram feitos no painel Render, ainda sem evidência de CD
+automático. O GitHub retornou 403 ao tentar criar HOMOL: falta permissão de
+administrador do repositório para preparar os Environments.
 
 A versão oficial está em `services/inventory/pom.xml`, inicialmente `0.1.0`.
 Incremente PATCH para correção compatível, MINOR para funcionalidade compatível
@@ -78,10 +92,10 @@ Os artefatos Maven mantêm a versão do POM; a tag Docker também identifica o c
 
 Crie um projeto exclusivo para Estoque, associado ao mesmo repositório.
 Desative a análise automática do Sonar: a análise será por Maven/CI, com o XML
-do JaCoCo. Mantenha `main` como principal e configure `develop` e `homolog`
-como branches longas (por exemplo, padrão
-`^(develop|homolog|(branch|release)-.*)$`). Inicialize a análise da main
-antes de analisar branches/PRs. Configure a proteção de main/develop/homolog para exigir
+do JaCoCo. Mantenha `main` como principal e configure `develop` como branch longa.
+O padrão atual também inclui `homolog` por histórico; isso não muda os
+gatilhos do workflow nem exige usar essa branch. Inicialize a análise da main
+antes de analisar branches/PRs. Configure a proteção de main/develop para exigir
 o check Inventory e o Quality Gate; não autorize bypass silencioso do gate.
 
 O plano Free comum só analisa a branch principal. Para este repositório
@@ -89,7 +103,8 @@ público, a opção gratuita é uma organização no plano OSS, que permite aná
 de branches e PRs. A organização OSS criada para o estoque é
 `danielhoepers-devops`, e o projeto público é `danielhoepers-devops_inventory`.
 O workflow exige um plano com suporte às branches analisadas; não ignora um
-Quality Gate reprovado. A análise remota da feature foi aprovada; main/develop/homolog ainda precisam de validação.
+Quality Gate reprovado. As análises remotas de feature/develop/homolog foram aprovadas; a primeira
+análise da main e seu fluxo definitivo ainda precisam ser validados.
 
 Configuração no repositório GitHub:
 
@@ -242,7 +257,7 @@ METRICS_TOKEN é independente, forte e diferente nos dois ambientes.
 ## GitHub Environments e CD
 
 Crie Environments `DEV` e `HOMOL`, sem aprovação manual obrigatória se o T2
-exigir deploy automático. Restrinja DEV a develop e HOMOL a homolog. Configure em
+exigir deploy automático. Restrinja DEV a develop e HOMOL a main. Configure em
 cada um, sem sobrescrever valores de outros serviços:
 
 | Tipo | Nome | Conteúdo |
@@ -268,6 +283,15 @@ anterior aprovado e implante pelo painel; não apague bancos/volumes.
 
 ## Prometheus e Grafana
 
+Revisão em 2026-10-31: endpoints de métricas foram implementados e HOMOL
+respondeu HTTP 200 com token, incluindo JVM, CPU, conexões Hikari e histogramas
+HTTP com environment=homol. A configuração local contém sete painéis e duas
+regras de alerta, mas não havia containers de monitoramento em execução,
+arquivos de targets nem arquivos de tokens na pasta ignorada. Configuração
+versionada não comprova coleta ativa ou dashboard com dados reais.
+O PDF exige Prometheus, Grafana e dashboards; não especifica métricas mínimas,
+alertas, notificações ou hospedagem cloud dessas duas ferramentas.
+
 Siga [monitoring/inventory/README.md](../monitoring/inventory/README.md).
 A configuração é adicional ao Compose do monorepo e não modifica outros serviços.
 O dashboard usa environment para separar DEV/HOMOL e exibe disponibilidade da
@@ -283,11 +307,11 @@ regras de notificação no Grafana, ainda não configurados.
 |---|---|
 | Repositório | https://github.com/guilhermeschr/trabalho-devops |
 | Workflow e Quality Gate | URL da execução e análise por ambiente |
-| DEV público | Pendente — URL real do Spring |
-| HOMOL público | Pendente — URL real do Spring |
+| DEV público | https://inventory-dev.onrender.com |
+| HOMOL público | https://inventory-homol.onrender.com |
 | Imagens | Digest do Spring de cada deploy |
 | Prometheus | Targets dos dois ambientes UP |
-| Grafana | URL acessível ao avaliador e captura com dados reais |
-| Git Flow / SemVer | PRs feature → develop → homolog → main, versão e commit entregues |
+| Grafana | Dashboard demonstrável e captura com dados reais; URL se houver hospedagem remota |
+| Git Flow / SemVer | PRs feature → develop → main, versão e commit entregues |
 
 Não coloque tokens, senhas ou links de deploy com chaves nas evidências.
