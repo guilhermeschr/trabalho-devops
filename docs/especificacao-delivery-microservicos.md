@@ -1,8 +1,8 @@
 # Especificação do Sistema de Delivery com Microsserviços
 
 **Status:** especificação de referência para implementação
-**Versão:** 2.10
-**Última atualização:** 2026-09-23
+**Versão:** 2.15
+**Última atualização:** 2026-10-31
 **Idioma:** português
 **Objetivo:** orientar a construção, execução e validação de um sistema simples de delivery com foco em DevOps.
 
@@ -10,6 +10,11 @@
 
 | Versão | Data | Alteração |
 |---|---|---|
+| 2.15 | 2026-10-31 | Alinhado Inventory ao enunciado T2: develop/DEV e main/HOMOL; homolog deixa de acionar o workflow; monitoramento ainda preparado e CD depende de configuração externa |
+| 2.14 | 2026-10-31 | CI do Inventory separa develop/DEV, homolog/HOMOL e main/versão aprovada; main não publica nem implanta; deploy condicionado à habilitação futura por Variable |
+| 2.13 | 2026-10-28 | Somente Estoque cloud: Spring público no Render sem Nginx dedicado; rotas acessíveis diretamente preservando JWT, token interno e métricas; CD de uma imagem; Compose e demais serviços preservados |
+| 2.12 | 2026-10-25 | CI do Estoque aceita identificadores Sonar em Variables ou Secrets, com precedência de Variables; token permanece somente em Secrets; documentado plano OSS para o repositório público |
+| 2.11 | 2026-10-25 | T2 Estoque: porta PORT, Actuator/Prometheus com token próprio, CI/CD por digest, Sonar, Git Flow, gateway cloud e monitoramento; configuração externa pendente (seção 20) |
 | 2.10 | 2026-09-23 | Adicionada a coleção Bruno `docs/bruno/` (YAML OpenCollection) com asserção do HTTP esperado por requisição, executável pelo Runner ou por `npx @usebruno/cli run` (seção 13) |
 | 2.9 | 2026-09-23 | Adicionados `docs/arquitetura.md` (visão geral resumida), `docs/roteiro-apresentacao.md` (roteiro de testes manuais), a coleção Insomnia `docs/insomnia-delivery.json` e o script `scripts/demo-manual.sh` (seção 13); sem alteração de contratos |
 | 2.8 | 2026-09-23 | Fechamento da especificação: checklist da seção 14 marcado conforme as suítes, a cobertura, os roteiros e o Swagger executados; seção 8 alinhada à organização real (`common/`, `health/`, `runtime/`); seções 10, 15, 16 e 17 atualizadas para os quatro serviços implementados |
@@ -57,9 +62,9 @@ Não fazem parte desta versão:
 - Rastreamento ou cálculo de entrega.
 - Múltiplos produtos no mesmo pedido.
 - Frontend.
-- Deploy em nuvem.
-- Pipeline GitHub Actions.
 - Autorização baseada em múltiplos perfis de usuário.
+
+O T2 inclui deploy em nuvem e GitHub Actions para Estoque (seção 20).
 
 ## 2. Arquitetura geral
 
@@ -79,6 +84,7 @@ Não fazem parte desta versão:
 | Empacotamento | Docker e Docker Compose |
 | Testes | Jest e Supertest (Produtos, Auth e Pedidos); JUnit 5, Mockito, MockMvc, Testcontainers e JaCoCo (Estoque) |
 | Documentação de API | Swagger/OpenAPI |
+| Observabilidade do Estoque (T2) | Actuator, Micrometer, Prometheus e Grafana |
 
 Cada serviço TypeScript é um workspace npm próprio na raiz do repositório
 (`services/products`, `services/auth` e `services/orders`), com `package.json`,
@@ -130,6 +136,10 @@ flowchart LR
 ~~~
 
 ### 2.4 Regras de rede
+
+As regras abaixo descrevem o Compose local e os demais serviços. A exceção
+aprovada para o Estoque cloud (seção 20) usa acesso público direto ao Spring,
+inclusive `/internal/v1/inventory/debit`, mantendo `X-Internal-Token`.
 
 - Somente o Nginx deverá publicar portas HTTP para o cliente.
 - Bancos, RabbitMQ e endpoints internos não deverão ser publicados para acesso externo.
@@ -485,7 +495,10 @@ Regras:
 
 ## 4. Rotas internas
 
-As rotas internas não deverão ser configuradas no Nginx e não poderão ser chamadas por clientes externos.
+No Compose local, as rotas internas não deverão ser configuradas no Nginx
+e não poderão ser chamadas por clientes externos. Somente no Estoque cloud,
+o débito fica acessível pela URL pública direta, com `X-Internal-Token`
+obrigatório (seção 20). Produtos e Pedidos não são alterados por essa exceção.
 
 ### 4.1 Consultar produto internamente
 
@@ -868,7 +881,7 @@ todos os containers é 3000.
 | Gateway | `PRODUCTS_PUBLIC_PORT` (porta HTTP publicada pelo Nginx, padrão 8080) |
 | RabbitMQ (Produtos e Estoque) | `RABBITMQ_URL`, `RABBITMQ_EXCHANGE` |
 | Produtos | `PRODUCTS_PORT`, `PRODUCTS_WRITE_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `PRODUCTS_READ_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `RABBITMQ_PRODUCTS_QUEUE` |
-| Estoque | `INVENTORY_PORT`, `INVENTORY_WRITE_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `INVENTORY_READ_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `RABBITMQ_INVENTORY_QUEUE` |
+| Estoque | `PORT`, `APP_ENV`, `METRICS_TOKEN`, `INVENTORY_PORT`, `INVENTORY_WRITE_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `INVENTORY_READ_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `RABBITMQ_INVENTORY_QUEUE` |
 | Auth | `AUTH_PORT`, `AUTH_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `JWT_EXPIRES_IN` |
 | Pedidos | `ORDERS_PORT`, `ORDERS_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `PRODUCTS_SERVICE_URL`, `INVENTORY_SERVICE_URL`, `ORDERS_HTTP_TIMEOUT_MS` |
 
@@ -1346,7 +1359,7 @@ Swagger interno usa `/docs` e `/docs-json`; pelo gateway, fica em
 `/inventory/docs` e `/inventory/docs-json`. Só é habilitado com
 `SWAGGER_ENABLED=true` fora de produção. `NODE_ENV=production` e os perfis Spring `prod`/`production` desabilitam Swagger mesmo com a flag ativa. Os recursos estáticos locais são encaminhados por `/inventory/swagger-ui/`.
 
-Configuração: `INVENTORY_PORT`, `INVENTORY_WRITE_DB_{HOST,PORT,NAME,USER,PASSWORD}`,
+Configuração: `PORT`, `APP_ENV`, `METRICS_TOKEN`, `INVENTORY_PORT`, `INVENTORY_WRITE_DB_{HOST,PORT,NAME,USER,PASSWORD}`,
 `INVENTORY_READ_DB_{HOST,PORT,NAME,USER,PASSWORD}`, `RABBITMQ_INVENTORY_QUEUE`,
 `RABBITMQ_URL` (usuário `inventory`, seção 7.4), `RABBITMQ_EXCHANGE`,
 `JWT_SECRET`, `INTERNAL_SERVICE_TOKEN` e `SWAGGER_ENABLED`. Exemplos locais
@@ -1515,3 +1528,59 @@ A suíte de Pedidos cobre os 14 casos da seção 12.2 com repositório e cliente
 REST mockados, o guard JWT e o mapeamento de erros HTTP com Supertest, os
 clientes REST com `fetch` mockado (timeout, falha de rede, 5xx e respostas
 inesperadas), o repositório TypeORM e o contrato OpenAPI, com limiar Jest de 50%.
+
+
+## 20. Trabalho Prático 2 — Estoque
+
+O T2 amplia o escopo anterior com CI/CD e cloud, mantendo Estoque no monorepo.
+Para o Inventory, o fluxo segue o enunciado T2: `feature/*` → `develop` (DEV) →
+`main` (HOMOL). A branch histórica `homolog` não aciona o workflow e não é
+necessária para novas entregas. Produção não integra o escopo do trabalho.
+
+`PORT` tem precedência sobre `INVENTORY_PORT` (padrão 3000). Actuator expõe
+somente health e prometheus. `/actuator/health/readiness` verifica estado de
+prontidão e ambos os DataSources; `/health` continua verificando o processo.
+`/actuator/prometheus` e subcaminhos exigem `Authorization: Bearer <METRICS_TOKEN>`;
+sem configuração ou com token ausente/incorreto respondem 401 sem corpo.
+O caminho é normalizado, inclusive parâmetros separados por ponto e vírgula.
+Esses endpoints operacionais do Actuator não integram o contrato de negócio
+OpenAPI; a proteção e a exposição são verificadas por testes específicos.
+As métricas incluem application, environment (`APP_ENV`, padrão local) e
+histogramas HTTP. Nenhum detalhe de saúde é exposto.
+
+O workflow `.github/workflows/inventory.yml` executa verify com Java 21,
+SonarCloud com Quality Gate, build Docker e publicação exclusiva do estoque
+no GHCR; somente pushes em develop/main publicam imagens. Tags usam
+`X.Y.Z-dev-<sha>` e `X.Y.Z-homol-<sha>`. O deploy por digest mapeia develop
+para Environment DEV e main para HOMOL, condicionado também à Variable de
+repositório `INVENTORY_DEPLOY_ENABLED=true`. Sem essa habilitação, o deploy
+fica pulado para tratar a hospedagem em uma etapa posterior. PRs de forks
+executam os testes sem acesso aos secrets e não são considerados evidência de
+Sonar aprovado. O CD consulta o deploy específico na API Render até `live` e
+verifica readiness, JWT, token interno, métricas e Swagger na URL pública.
+Os identificadores `INVENTORY_SONAR_ORGANIZATION` e
+`INVENTORY_SONAR_PROJECT_KEY` são lidos de Variables ou, quando vazias,
+de Secrets do repositório. `INVENTORY_SONAR_TOKEN` permanece somente em Secrets.
+O projeto público usa uma organização no plano OSS, com suporte a branches.
+
+Cloud: somente Estoque usa um Render Web Service público, com acesso direto
+ao Spring pela `PORT`, sem Nginx dedicado. Todas as rotas habilitadas ficam
+acessíveis na URL pública, inclusive `/internal/v1/inventory/debit`. O prefixo
+`/internal/` é preservado por compatibilidade e requer `X-Internal-Token`
+(403 ausente/incorreto); não há isolamento de rede HTTP nessa hospedagem.
+JWT e token de métricas permanecem obrigatórios. O CD publica e implanta
+somente a imagem Spring; não exige imagem ou ID de serviço de gateway.
+Pedidos poderá usar a origem HTTPS do Inventory, mediante configuração pelo
+responsável desse serviço. Nenhum outro microsserviço é modificado.
+A configuração cloud é adicional e não altera o Compose/gateway local.
+DEV e HOMOL usam quatro bancos lógicos (write/read por ambiente) e mensageria
+separada por vhost/instância. Na implantação atual, o usuário optou pela mesma
+credencial PostgreSQL nos dois ambientes; isso separa os dados por banco,
+mas não isola as permissões entre ambientes. Swagger fica habilitado em DEV
+e desabilitado em HOMOL (`SWAGGER_ENABLED=false`, `NODE_ENV=production`).
+
+Prometheus e Grafana têm configuração adicional em `monitoring/inventory/`.
+Provisionamento, secrets, plano Sonar, URLs, dashboards com dados reais e
+pipeline remoto ainda devem ser configurados/validados; não estão cobertos
+pelas evidências históricas da seção 14. Instruções e checklist de entrega:
+[DevOps do Estoque](inventory-devops.md).
