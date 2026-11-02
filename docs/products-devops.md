@@ -1,7 +1,7 @@
 # DevOps de Produtos
 
 Estado: Produtos DEV/HOMOL provisionados e validados; release estável de HOMOL
-implantada pelo CD. Avanço DEV para 0.2.1 em revisão. Inventory preservado.
+implantada pelo CD. DEV executa 0.2.1-dev.19; HOMOL executa 0.2.0. Inventory preservado.
 
 ## Configuração GitHub
 
@@ -116,10 +116,10 @@ Não registrar tokens, URLs com credenciais nem chaves de deploy.
 - [x] Projeto Sonar OSS e Quality Gate remotos
 - [x] Credenciais GitHub configuradas
 - [x] Imagens Docker Hub e releases publicadas
-- [ ] Render DEV/HOMOL e CD automático
+- [x] Render DEV/HOMOL e CD automático
 - [x] CQRS cloud e comunicação autenticada
 - [x] Prometheus/Grafana com dados reais
-- [ ] DEV na próxima PATCH, HOMOL na estável
+- [x] DEV na próxima PATCH, HOMOL na estável
 
 
 ## Evidências locais de 02/11/2026
@@ -246,3 +246,27 @@ também incorpora a ancestralidade da promoção aprovada de main.
 
 O painel 5xx foi validado com consulta real: mostra zero para ambiente com
 coleta UP e nenhuma série de erro, evitando No data nesse caso normal.
+
+
+## Entrega DEV concluída em 02/11/2026
+
+- [PR #29](https://github.com/guilhermeschr/trabalho-devops/pull/29) integrado em
+  develop: 91a56c65360ceebaafa49579f5eb7e65cb192440, após checks aprovados.
+- [Pipeline DEV 41548433139](https://github.com/guilhermeschr/trabalho-devops/actions/runs/41548433139):
+  quality, image e deploy concluídos com sucesso.
+- [Release products-v0.2.1-dev.19](https://github.com/guilhermeschr/trabalho-devops/releases/tag/products-v0.2.1-dev.19).
+  Digest: sha256:85fed0e0dc7db6b9ec1e19bf3dc11561b98eae92924307848a568e1fbb306c1a.
+  Deploy Render específico: dep-dbki52h42hec73cmqof0, live.
+- Validação final HTTP confirmou identidade DEV 0.2.1-dev.19/91a56c6… e
+  HOMOL 0.2.0/3e3db35…, Swagger UI/JSON 200 DEV e 404 HOMOL, health, JWT,
+  token interno e métricas protegidas. Prometheus coletou as duas versões, UP=1.
+- Grafana local autenticado no Safari: dashboard Products / Produtos — DEV e
+  HOMOL, com tráfego real. Monitoramento requer computador e Docker ligados.
+- Limites operacionais: PostgreSQL gratuito expira em 30/11/2026; tokens
+  temporários de GitHub/Docker Hub expiram no início de dezembro e deverão ser
+  renovados nas plataformas para manter publicação. Não há cobrança contratada.
+- Sonar develop permanece classificado SHORT com Gate OK; a mudança para LONG
+  não foi executada pois exige remover o histórico existente. main é LONG, Gate OK.
+
+As seções anteriores registram a sequência de provisionamento e seus estados
+naquele momento; esta seção registra o estado final verificado.

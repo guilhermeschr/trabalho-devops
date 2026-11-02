@@ -1690,8 +1690,8 @@ existirem estes arquivos. Critérios históricos da seção 14 não comprovam T2
 
 - [x] SonarCloud Produtos OSS, análises main/develop e Quality Gate reais.
 - [x] Docker Hub com imagem por release e digest registrado.
-- [ ] CD automático DEV/HOMOL com identidade correta.
+- [x] CD automático DEV/HOMOL com identidade correta.
 - [x] Dados e mensageria isolados; fluxo CQRS validado nos dois ambientes.
 - [x] Swagger 200 UI/JSON em DEV e 404 em HOMOL.
 - [x] Prometheus com os dois targets UP e Grafana com tráfego real.
-- [ ] HOMOL na release estável e DEV na próxima versão PATCH.
+- [x] HOMOL na release estável e DEV na próxima versão PATCH.

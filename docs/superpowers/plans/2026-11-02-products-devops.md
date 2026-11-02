@@ -17,11 +17,15 @@ Retentativas não sobrescrevem releases; falha de gate bloqueia publicação; Sw
 ## Tarefas
 
 1. [x] Conferir remoto, alinhar develop local por fast-forward e criar worktree/feature; baseline Produtos 54 testes.
-2. [ ] Versão pública, porta, TLS, secrets cloud, Swagger e métricas: escrever testes, observar falha, implementar, executar suíte/tipagem/build e contrato Swagger; atualizar especificação; commit.
-3. [ ] Metadados imutáveis, release idempotente, script Render e workflow: testes Python de versões/deploy, implementar, validar workflow e build Docker; commit com especificação.
-4. [ ] Prometheus/Grafana provisionados e Dependabot: validar promtool/Compose/dashboard, testar coleta, documentar e commit.
-5. [ ] Criar/configurar Sonar gratuito e Docker Hub via Safari; configurar Secrets/Environments e Render após validar permissões e dados gratuitos. Não declarar concluído sem evidências.
-6. [ ] Executar fluxo, revisar branch, corrigir achados importantes, commits e validações finais.
-7. [ ] Publicar feature, validar DEV após integração em develop, promover main/HOMOL; incrementar PATCH só em develop; evidências de versão/digest/monitoramento.
+2. [x] Versão pública, porta, TLS, secrets cloud, Swagger e métricas: escrever testes, observar falha, implementar, executar suíte/tipagem/build e contrato Swagger; atualizar especificação; commit.
+3. [x] Metadados imutáveis, release idempotente, script Render e workflow: testes Python de versões/deploy, implementar, validar workflow e build Docker; commit com especificação.
+4. [x] Prometheus/Grafana provisionados e Dependabot: validar promtool/Compose/dashboard, testar coleta, documentar e commit.
+5. [x] Criar/configurar Sonar gratuito e Docker Hub via Safari; configurar Secrets/Environments e Render após validar permissões e dados gratuitos. Não declarar concluído sem evidências.
+6. [x] Executar fluxo, revisar branch, corrigir achados importantes, commits e validações finais.
+7. [x] Publicar feature, validar DEV após integração em develop, promover main/HOMOL; incrementar PATCH só em develop; evidências de versão/digest/monitoramento.
 
 Cada etapa dependente de plataforma externa exige pré-condições reais. Se houver bloqueio externo, registrar qual e concluir o trabalho local independente.
+
+Evidências finais: docs/products-devops.md. DEV 0.2.1-dev.19, HOMOL 0.2.0;
+pipelines CD aprovados, contratos HTTP e Prometheus/Grafana reais validados.
+Limitação: Sonar develop SHORT preservado para não apagar histórico.
