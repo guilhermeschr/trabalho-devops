@@ -1,7 +1,7 @@
 # DevOps de Produtos
 
-Estado: implementação local em validação; serviços externos só serão marcados
-como concluídos após suas evidências. O Inventory do Daniel é preservado.
+Estado: Produtos DEV/HOMOL provisionados e validados; release estável de HOMOL
+implantada pelo CD. Avanço DEV para 0.2.1 em revisão. Inventory preservado.
 
 ## Configuração GitHub
 
@@ -113,12 +113,12 @@ Swagger UI/JSON, Docker build e fluxo Compose. Monitoramento segue
 DEV/HOMOL, tags Git, digests, respostas de versão e dashboard com dados reais.
 Não registrar tokens, URLs com credenciais nem chaves de deploy.
 
-- [ ] Projeto Sonar OSS e Quality Gate remotos
-- [ ] Credenciais GitHub configuradas
-- [ ] Imagens Docker Hub e releases publicadas
+- [x] Projeto Sonar OSS e Quality Gate remotos
+- [x] Credenciais GitHub configuradas
+- [x] Imagens Docker Hub e releases publicadas
 - [ ] Render DEV/HOMOL e CD automático
-- [ ] CQRS cloud e comunicação autenticada
-- [ ] Prometheus/Grafana com dados reais
+- [x] CQRS cloud e comunicação autenticada
+- [x] Prometheus/Grafana com dados reais
 - [ ] DEV na próxima PATCH, HOMOL na estável
 
 
@@ -228,3 +228,18 @@ A feature autorizada prepara o manifesto/lock de Produtos para 0.2.1. Integrar
 em develop após a entrega estável 0.2.0 de HOMOL, gerando 0.2.1-dev.<build>
 pelo pipeline; não promover essa alteração para main nesta tarefa. A feature
 também incorpora a ancestralidade da promoção aprovada de main.
+
+
+## Release estável de HOMOL entregue
+
+- PR #21 integrado em main: 3e3db35f780ef0705342563ad65a4a68aae66c49.
+- [Pipeline 41541243661](https://github.com/guilhermeschr/trabalho-devops/actions/runs/41541243661),
+  tentativa 2: quality, image e deploy aprovados. Quality Gate main OK, sem
+  exclusões CPD ou bypass. A primeira tentativa serviu como análise inicial.
+- [Release products-v0.2.0](https://github.com/guilhermeschr/trabalho-devops/releases/tag/products-v0.2.0).
+  Imagem: docker.io/d2gtrabalhos/products-service@sha256:180bc69fe7ed4ccf7db7d1cdb98e7f18babe374f457bd15b04fbba79cb01f9e8.
+- Verificação pública confirmou version=0.2.0, commit=3e3db35… e environment=homol;
+  Swagger UI/JSON 404 e proteções JWT, métricas e token interno aprovadas.
+- Prometheus confirmou HOMOL 0.2.0 e DEV 0.2.0-dev.3. O datasource Grafana
+  retornou up=1 e contadores HTTP reais para ambos.
+- PR #29 contém a próxima versão DEV 0.2.1; não integra main/HOMOL.
