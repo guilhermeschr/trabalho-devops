@@ -1,7 +1,7 @@
 # Especificação do Sistema de Delivery com Microsserviços
 
 **Status:** especificação de referência para implementação
-**Versão:** 2.17
+**Versão:** 2.18
 **Última atualização:** 2026-11-02
 **Idioma:** português
 **Objetivo:** orientar a construção, execução e validação de um sistema simples de delivery com foco em DevOps.
@@ -10,6 +10,7 @@
 
 | Versão | Data | Alteração |
 |---|---|---|
+| 2.18 | 2026-11-02 | Documentada a exclusão de schemas ORM e migrações CQRS da detecção de duplicação Sonar, preservando análise de qualidade e cobertura |
 | 2.17 | 2026-11-02 | Produtos image-backed no Render sem conexão Git; atualização exclusiva pelo CD via API com digest aprovado |
 | 2.16 | 2026-11-02 | Produtos T2: versão pública, PORT, TLS PostgreSQL, métricas protegidas, SonarCloud, releases Docker Hub e CD Render por digest; monitoramento local e configuração externa com evidências próprias |
 | 2.15 | 2026-10-31 | Alinhado Inventory ao enunciado T2: develop/DEV e main/HOMOL; homolog deixa de acionar o workflow; monitoramento ainda preparado e CD depende de configuração externa |
@@ -1635,6 +1636,12 @@ compilado nos dois ambientes.
 Workflow independente `.github/workflows/products.yml`: testes e limiar Jest
 50% em todas as quatro métricas, tipagem, build, contrato Swagger HTTP, testes
 Python, validação Prometheus e SonarCloud com LCOV e Quality Gate obrigatório.
+A detecção de duplicação exclui somente migrações e arquivos *.orm-entity.ts:
+os schemas de escrita/leitura repetem colunas por contrato CQRS, e migrações
+publicadas são imutáveis. Esses arquivos permanecem na análise de bugs,
+vulnerabilidades e demais regras. Código de negócio, repositórios, operações e
+configuração de injeção continuam sujeitos à detecção de duplicação; o limite
+do Quality Gate não é reduzido.
 Features/PRs/execuções manuais validam sem publicar; forks e Dependabot não
 recebem secrets Sonar/deploy. Isso não comprova Quality Gate nesses PRs.
 

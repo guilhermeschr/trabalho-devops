@@ -197,3 +197,24 @@ coleta de métricas dos ambientes cloud.
   habilitado. A execução real do job de CD ainda precisa ser comprovada.
 - Instâncias RabbitMQ usam usuários/vhosts distintos; teste AMQPS publicou e
   consumiu mensagem em fila temporária exclusiva, removida ao fechar conexão.
+
+
+## Quality Gate da primeira análise main
+
+O pipeline 41541243661 bloqueou a publicação antes de criar imagem/release
+estável. A análise apontou cobertura 95,5%, zero bugs/vulnerabilidades e
+10,6% de duplicação. A duplicação concentrava-se nos schemas de escrita/leitura,
+migrações e configuração de conexão CQRS. Excluir apenas migrações imutáveis e
+mapeamentos *.orm-entity.ts do CPD preserva a independência dos bancos; as
+demais regras continuam analisando esses arquivos. Não reduzir o limite do Gate.
+
+Monitoramento real: ambos os targets UP no Prometheus localhost:9091; dashboard
+Produtos — DEV e HOMOL provisionado no Grafana localhost:3002. Nesta máquina,
+tokens foram instalados no volume products-monitoring-metrics com modo 0600 e
+UID 65534; override local de Compose monta esse volume em /run/secrets.
+A configuração versionada também suporta arquivos privados legíveis pelo
+usuário do container. Não tornar tokens legíveis por outros usuários locais.
+
+O Sonar classifica develop atualmente como SHORT, com Quality Gate OK. A
+classificação de longa duração prevista no planejamento ainda não foi aplicada;
+alterar a classificação existente exige recriar a análise e perder seu histórico.
