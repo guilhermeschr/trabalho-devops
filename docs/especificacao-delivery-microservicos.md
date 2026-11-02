@@ -1,7 +1,7 @@
 # Especificação do Sistema de Delivery com Microsserviços
 
 **Status:** especificação de referência para implementação
-**Versão:** 2.18
+**Versão:** 2.19
 **Última atualização:** 2026-11-02
 **Idioma:** português
 **Objetivo:** orientar a construção, execução e validação de um sistema simples de delivery com foco em DevOps.
@@ -10,6 +10,7 @@
 
 | Versão | Data | Alteração |
 |---|---|---|
+| 2.19 | 2026-11-02 | Preparada versão 0.2.1 de Produtos para develop/DEV, preservando a entrega estável 0.2.0 em main/HOMOL |
 | 2.18 | 2026-11-02 | Documentada a inicialização do Quality Gate Sonar da main; publicação exige análise posterior com resultado OK, sem pular o Gate |
 | 2.17 | 2026-11-02 | Produtos image-backed no Render sem conexão Git; atualização exclusiva pelo CD via API com digest aprovado |
 | 2.16 | 2026-11-02 | Produtos T2: versão pública, PORT, TLS PostgreSQL, métricas protegidas, SonarCloud, releases Docker Hub e CD Render por digest; monitoramento local e configuração externa com evidências próprias |
@@ -1644,7 +1645,8 @@ Features/PRs/execuções manuais validam sem publicar; forks e Dependabot não
 recebem secrets Sonar/deploy. Isso não comprova Quality Gate nesses PRs.
 
 Push em develop publica X.Y.Z-dev.<run_number>; main publica X.Y.Z, base no
-package.json de Produtos, inicialmente 0.2.0. Registry público:
+package.json de Produtos: a entrega estável inicial é 0.2.0; o avanço seguinte
+de develop usa 0.2.1-dev.<run_number>, sem alterar a versão em main. Registry público:
 `docker.io/d2gtrabalhos/products-service`. Tags Git prefixadas products-v;
 releases DEV são prereleases. Imagens linux/amd64, labels OCI version/revision,
 sem latest no CD. Se imagem já existir, reutilizar digest apenas quando o

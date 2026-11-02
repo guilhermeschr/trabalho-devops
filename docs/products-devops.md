@@ -220,3 +220,11 @@ usuário do container. Não tornar tokens legíveis por outros usuários locais.
 O Sonar classifica develop atualmente como SHORT, com Quality Gate OK. A
 classificação de longa duração prevista no planejamento ainda não foi aplicada;
 alterar a classificação existente exige recriar a análise e perder seu histórico.
+
+
+## Próxima versão de DEV
+
+A feature autorizada prepara o manifesto/lock de Produtos para 0.2.1. Integrar
+em develop após a entrega estável 0.2.0 de HOMOL, gerando 0.2.1-dev.<build>
+pelo pipeline; não promover essa alteração para main nesta tarefa. A feature
+também incorpora a ancestralidade da promoção aprovada de main.
