@@ -202,11 +202,13 @@ coleta de métricas dos ambientes cloud.
 ## Quality Gate da primeira análise main
 
 O pipeline 41541243661 bloqueou a publicação antes de criar imagem/release
-estável. A análise apontou cobertura 95,5%, zero bugs/vulnerabilidades e
-10,6% de duplicação. A duplicação concentrava-se nos schemas de escrita/leitura,
-migrações e configuração de conexão CQRS. Excluir apenas migrações imutáveis e
-mapeamentos *.orm-entity.ts do CPD preserva a independência dos bancos; as
-demais regras continuam analisando esses arquivos. Não reduzir o limite do Gate.
+estável. O scanner anunciou FAILED; a API e o painel confirmaram status NONE
+(não calculado), por ser a primeira análise da branch longa main. Os indicadores
+globais eram cobertura 95,5%, zero bugs/vulnerabilidades e duplicação 10,6%;
+essa duplicação não foi comprovada como condição reprovada do Gate.
+A exclusão de schemas CPD proposta na feature foi retirada antes de integração.
+Repetir a análise para calcular o Gate após estabelecer a referência inicial,
+sem alterar critérios, ignorar o resultado ou remover arquivos da análise.
 
 Monitoramento real: ambos os targets UP no Prometheus localhost:9091; dashboard
 Produtos — DEV e HOMOL provisionado no Grafana localhost:3002. Nesta máquina,
