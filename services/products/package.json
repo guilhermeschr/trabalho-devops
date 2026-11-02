@@ -13,7 +13,7 @@
     "migration:run": "typeorm-ts-node-commonjs migration:run -d src/modules/products/infrastructure/persistence/write/data-source.ts && typeorm-ts-node-commonjs migration:run -d src/modules/products/infrastructure/persistence/read/data-source.ts"
   },
   "dependencies": {
-    "@nestjs/common": "^11.0.0",
+    "@nestjs/common": "^12.3.2",
     "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.0.0",
     "@nestjs/jwt": "^11.0.0",
