@@ -113,7 +113,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (environment) (rate(http_requests_total{status=~\"5..\",environment=~\"$environment\"}[5m]))",
+          "expr": "sum by (environment) (rate(http_requests_total{status=~\"5..\",environment=~\"$environment\"}[5m])) or on (environment) (0 * max by (environment) (up{job=~\"products-(dev|homol)\",environment=~\"$environment\"} == 1))",
           "legendFormat": "{{environment}}",
           "instant": false,
           "format": "time_series"

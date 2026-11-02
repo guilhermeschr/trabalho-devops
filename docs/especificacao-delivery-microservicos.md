@@ -1,7 +1,7 @@
 # Especificação do Sistema de Delivery com Microsserviços
 
 **Status:** especificação de referência para implementação
-**Versão:** 2.17
+**Versão:** 2.20
 **Última atualização:** 2026-11-02
 **Idioma:** português
 **Objetivo:** orientar a construção, execução e validação de um sistema simples de delivery com foco em DevOps.
@@ -10,6 +10,9 @@
 
 | Versão | Data | Alteração |
 |---|---|---|
+| 2.20 | 2026-11-02 | Painel HTTP 5xx mostra zero quando não há erros e a coleta está UP, sem mascarar indisponibilidade |
+| 2.19 | 2026-11-02 | Preparada versão 0.2.1 de Produtos para develop/DEV, preservando a entrega estável 0.2.0 em main/HOMOL |
+| 2.18 | 2026-11-02 | Documentada a inicialização do Quality Gate Sonar da main; publicação exige análise posterior com resultado OK, sem pular o Gate |
 | 2.17 | 2026-11-02 | Produtos image-backed no Render sem conexão Git; atualização exclusiva pelo CD via API com digest aprovado |
 | 2.16 | 2026-11-02 | Produtos T2: versão pública, PORT, TLS PostgreSQL, métricas protegidas, SonarCloud, releases Docker Hub e CD Render por digest; monitoramento local e configuração externa com evidências próprias |
 | 2.15 | 2026-10-31 | Alinhado Inventory ao enunciado T2: develop/DEV e main/HOMOL; homolog deixa de acionar o workflow; monitoramento ainda preparado e CD depende de configuração externa |
@@ -1635,11 +1638,16 @@ compilado nos dois ambientes.
 Workflow independente `.github/workflows/products.yml`: testes e limiar Jest
 50% em todas as quatro métricas, tipagem, build, contrato Swagger HTTP, testes
 Python, validação Prometheus e SonarCloud com LCOV e Quality Gate obrigatório.
+A primeira análise de uma branch longa estabelece a referência e pode retornar
+Gate não calculado (NONE), bloqueando a publicação. Repetir a análise após
+estabelecer essa referência; somente OK permite publicar e implantar. Não
+desabilitar a espera do Gate nem excluir código para contornar sua inicialização.
 Features/PRs/execuções manuais validam sem publicar; forks e Dependabot não
 recebem secrets Sonar/deploy. Isso não comprova Quality Gate nesses PRs.
 
 Push em develop publica X.Y.Z-dev.<run_number>; main publica X.Y.Z, base no
-package.json de Produtos, inicialmente 0.2.0. Registry público:
+package.json de Produtos: a entrega estável inicial é 0.2.0; o avanço seguinte
+de develop usa 0.2.1-dev.<run_number>, sem alterar a versão em main. Registry público:
 `docker.io/d2gtrabalhos/products-service`. Tags Git prefixadas products-v;
 releases DEV são prereleases. Imagens linux/amd64, labels OCI version/revision,
 sem latest no CD. Se imagem já existir, reutilizar digest apenas quando o
@@ -1673,14 +1681,17 @@ RabbitMQ por ambiente. Provedores gratuitos existentes podem ser aproveitados
 apenas com capacidade e permissões confirmadas; nunca compartilhar tabelas,
 filas ou acessar bancos do Inventory. Utilizar TLS/AMQPS nos acessos externos.
 
+O painel de erros HTTP 5xx mostra zero quando não há séries de erro e a
+coleta do ambiente está UP; indisponibilidade não é convertida em zero.
+
 Secrets/Variables, preparação gratuita, monitoramento e evidências:
 `docs/products-devops.md`. Infraestrutura não é considerada provisionada por
 existirem estes arquivos. Critérios históricos da seção 14 não comprovam T2.
 
-- [ ] SonarCloud Produtos OSS, análises main/develop e Quality Gate reais.
-- [ ] Docker Hub com imagem por release e digest registrado.
+- [x] SonarCloud Produtos OSS, análises main/develop e Quality Gate reais.
+- [x] Docker Hub com imagem por release e digest registrado.
 - [ ] CD automático DEV/HOMOL com identidade correta.
-- [ ] Dados e mensageria isolados; fluxo CQRS validado nos dois ambientes.
-- [ ] Swagger 200 UI/JSON em DEV e 404 em HOMOL.
-- [ ] Prometheus com os dois targets UP e Grafana com tráfego real.
+- [x] Dados e mensageria isolados; fluxo CQRS validado nos dois ambientes.
+- [x] Swagger 200 UI/JSON em DEV e 404 em HOMOL.
+- [x] Prometheus com os dois targets UP e Grafana com tráfego real.
 - [ ] HOMOL na release estável e DEV na próxima versão PATCH.

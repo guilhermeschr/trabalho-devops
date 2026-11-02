@@ -1,7 +1,7 @@
 # DevOps de Produtos
 
-Estado: implementação local em validação; serviços externos só serão marcados
-como concluídos após suas evidências. O Inventory do Daniel é preservado.
+Estado: Produtos DEV/HOMOL provisionados e validados; release estável de HOMOL
+implantada pelo CD. Avanço DEV para 0.2.1 em revisão. Inventory preservado.
 
 ## Configuração GitHub
 
@@ -113,12 +113,12 @@ Swagger UI/JSON, Docker build e fluxo Compose. Monitoramento segue
 DEV/HOMOL, tags Git, digests, respostas de versão e dashboard com dados reais.
 Não registrar tokens, URLs com credenciais nem chaves de deploy.
 
-- [ ] Projeto Sonar OSS e Quality Gate remotos
-- [ ] Credenciais GitHub configuradas
-- [ ] Imagens Docker Hub e releases publicadas
+- [x] Projeto Sonar OSS e Quality Gate remotos
+- [x] Credenciais GitHub configuradas
+- [x] Imagens Docker Hub e releases publicadas
 - [ ] Render DEV/HOMOL e CD automático
-- [ ] CQRS cloud e comunicação autenticada
-- [ ] Prometheus/Grafana com dados reais
+- [x] CQRS cloud e comunicação autenticada
+- [x] Prometheus/Grafana com dados reais
 - [ ] DEV na próxima PATCH, HOMOL na estável
 
 
@@ -197,3 +197,52 @@ coleta de métricas dos ambientes cloud.
   habilitado. A execução real do job de CD ainda precisa ser comprovada.
 - Instâncias RabbitMQ usam usuários/vhosts distintos; teste AMQPS publicou e
   consumiu mensagem em fila temporária exclusiva, removida ao fechar conexão.
+
+
+## Quality Gate da primeira análise main
+
+O pipeline 41541243661 bloqueou a publicação antes de criar imagem/release
+estável. O scanner anunciou FAILED; a API e o painel confirmaram status NONE
+(não calculado), por ser a primeira análise da branch longa main. Os indicadores
+globais eram cobertura 95,5%, zero bugs/vulnerabilidades e duplicação 10,6%;
+essa duplicação não foi comprovada como condição reprovada do Gate.
+A exclusão de schemas CPD proposta na feature foi retirada antes de integração.
+Repetir a análise para calcular o Gate após estabelecer a referência inicial,
+sem alterar critérios, ignorar o resultado ou remover arquivos da análise.
+
+Monitoramento real: ambos os targets UP no Prometheus localhost:9091; dashboard
+Produtos — DEV e HOMOL provisionado no Grafana localhost:3002. Nesta máquina,
+tokens foram instalados no volume products-monitoring-metrics com modo 0600 e
+UID 65534; override local de Compose monta esse volume em /run/secrets.
+A configuração versionada também suporta arquivos privados legíveis pelo
+usuário do container. Não tornar tokens legíveis por outros usuários locais.
+
+O Sonar classifica develop atualmente como SHORT, com Quality Gate OK. A
+classificação de longa duração prevista no planejamento ainda não foi aplicada;
+alterar a classificação existente exige recriar a análise e perder seu histórico.
+
+
+## Próxima versão de DEV
+
+A feature autorizada prepara o manifesto/lock de Produtos para 0.2.1. Integrar
+em develop após a entrega estável 0.2.0 de HOMOL, gerando 0.2.1-dev.<build>
+pelo pipeline; não promover essa alteração para main nesta tarefa. A feature
+também incorpora a ancestralidade da promoção aprovada de main.
+
+
+## Release estável de HOMOL entregue
+
+- PR #21 integrado em main: 3e3db35f780ef0705342563ad65a4a68aae66c49.
+- [Pipeline 41541243661](https://github.com/guilhermeschr/trabalho-devops/actions/runs/41541243661),
+  tentativa 2: quality, image e deploy aprovados. Quality Gate main OK, sem
+  exclusões CPD ou bypass. A primeira tentativa serviu como análise inicial.
+- [Release products-v0.2.0](https://github.com/guilhermeschr/trabalho-devops/releases/tag/products-v0.2.0).
+  Imagem: docker.io/d2gtrabalhos/products-service@sha256:180bc69fe7ed4ccf7db7d1cdb98e7f18babe374f457bd15b04fbba79cb01f9e8.
+- Verificação pública confirmou version=0.2.0, commit=3e3db35… e environment=homol;
+  Swagger UI/JSON 404 e proteções JWT, métricas e token interno aprovadas.
+- Prometheus confirmou HOMOL 0.2.0 e DEV 0.2.0-dev.3. O datasource Grafana
+  retornou up=1 e contadores HTTP reais para ambos.
+- PR #29 contém a próxima versão DEV 0.2.1; não integra main/HOMOL.
+
+O painel 5xx foi validado com consulta real: mostra zero para ambiente com
+coleta UP e nenhuma série de erro, evitando No data nesse caso normal.
