@@ -243,3 +243,6 @@ também incorpora a ancestralidade da promoção aprovada de main.
 - Prometheus confirmou HOMOL 0.2.0 e DEV 0.2.0-dev.3. O datasource Grafana
   retornou up=1 e contadores HTTP reais para ambos.
 - PR #29 contém a próxima versão DEV 0.2.1; não integra main/HOMOL.
+
+O painel 5xx foi validado com consulta real: mostra zero para ambiente com
+coleta UP e nenhuma série de erro, evitando No data nesse caso normal.

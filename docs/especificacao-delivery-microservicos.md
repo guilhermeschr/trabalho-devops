@@ -1,7 +1,7 @@
 # Especificação do Sistema de Delivery com Microsserviços
 
 **Status:** especificação de referência para implementação
-**Versão:** 2.19
+**Versão:** 2.20
 **Última atualização:** 2026-11-02
 **Idioma:** português
 **Objetivo:** orientar a construção, execução e validação de um sistema simples de delivery com foco em DevOps.
@@ -10,6 +10,7 @@
 
 | Versão | Data | Alteração |
 |---|---|---|
+| 2.20 | 2026-11-02 | Painel HTTP 5xx mostra zero quando não há erros e a coleta está UP, sem mascarar indisponibilidade |
 | 2.19 | 2026-11-02 | Preparada versão 0.2.1 de Produtos para develop/DEV, preservando a entrega estável 0.2.0 em main/HOMOL |
 | 2.18 | 2026-11-02 | Documentada a inicialização do Quality Gate Sonar da main; publicação exige análise posterior com resultado OK, sem pular o Gate |
 | 2.17 | 2026-11-02 | Produtos image-backed no Render sem conexão Git; atualização exclusiva pelo CD via API com digest aprovado |
@@ -1679,6 +1680,9 @@ Quatro bancos lógicos de Produtos (write/read em DEV/HOMOL) e vhosts/credenciai
 RabbitMQ por ambiente. Provedores gratuitos existentes podem ser aproveitados
 apenas com capacidade e permissões confirmadas; nunca compartilhar tabelas,
 filas ou acessar bancos do Inventory. Utilizar TLS/AMQPS nos acessos externos.
+
+O painel de erros HTTP 5xx mostra zero quando não há séries de erro e a
+coleta do ambiente está UP; indisponibilidade não é convertida em zero.
 
 Secrets/Variables, preparação gratuita, monitoramento e evidências:
 `docs/products-devops.md`. Infraestrutura não é considerada provisionada por
