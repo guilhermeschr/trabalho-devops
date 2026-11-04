@@ -1,8 +1,8 @@
 # Especificação do Sistema de Delivery com Microsserviços
 
 **Status:** especificação de referência para implementação
-**Versão:** 2.17
-**Última atualização:** 2026-11-02
+**Versão:** 2.21
+**Última atualização:** 2026-11-03
 **Idioma:** português
 **Objetivo:** orientar a construção, execução e validação de um sistema simples de delivery com foco em DevOps.
 
@@ -10,6 +10,7 @@
 
 | Versão | Data | Alteração |
 |---|---|---|
+| 2.21 | 2026-11-03 | Inventory: consolidadas migração Docker Hub, negociação HTML/JSON do deploy e validação de PRs sem credenciais; preservadas integralmente as seções e o histórico dos demais serviços do original |
 | 2.17 | 2026-11-02 | Produtos image-backed no Render sem conexão Git; atualização exclusiva pelo CD via API com digest aprovado |
 | 2.16 | 2026-11-02 | Produtos T2: versão pública, PORT, TLS PostgreSQL, métricas protegidas, SonarCloud, releases Docker Hub e CD Render por digest; monitoramento local e configuração externa com evidências próprias |
 | 2.15 | 2026-10-31 | Alinhado Inventory ao enunciado T2: develop/DEV e main/HOMOL; homolog deixa de acionar o workflow; monitoramento ainda preparado e CD depende de configuração externa |
@@ -1557,14 +1558,20 @@ histogramas HTTP. Nenhum detalhe de saúde é exposto.
 
 O workflow `.github/workflows/inventory.yml` executa verify com Java 21,
 SonarCloud com Quality Gate, build Docker e publicação exclusiva do estoque
-no GHCR; somente pushes em develop/main publicam imagens. Tags usam
+no Docker Hub; somente pushes em develop/main publicam imagens. Tags usam
 `X.Y.Z-dev-<sha>` e `X.Y.Z-homol-<sha>`. O deploy por digest mapeia develop
 para Environment DEV e main para HOMOL, condicionado também à Variable de
 repositório `INVENTORY_DEPLOY_ENABLED=true`. Sem essa habilitação, o deploy
 fica pulado para tratar a hospedagem em uma etapa posterior. PRs de forks
 executam os testes sem acesso aos secrets e não são considerados evidência de
-Sonar aprovado. O CD consulta o deploy específico na API Render até `live` e
+Sonar aprovado. Builds que não publicam usam namespace `local` quando a Variable
+Docker Hub não está disponível; isso não autentica nem publica no registro.
+Pushes de develop/main continuam exigindo usuário válido e token de publicação.
+O CD consulta o deploy específico na API Render até `live` e
 verifica readiness, JWT, token interno, métricas e Swagger na URL pública.
+O verificador solicita `Accept: text/html` para `/docs` e
+`Accept: application/json` para `/docs-json`, preservando os códigos esperados
+por ambiente; pedir JSON à interface HTML não valida sua disponibilidade.
 Os identificadores `INVENTORY_SONAR_ORGANIZATION` e
 `INVENTORY_SONAR_PROJECT_KEY` são lidos de Variables ou, quando vazias,
 de Secrets do repositório. `INVENTORY_SONAR_TOKEN` permanece somente em Secrets.
@@ -1580,6 +1587,17 @@ somente a imagem Spring; não exige imagem ou ID de serviço de gateway.
 Pedidos poderá usar a origem HTTPS do Inventory, mediante configuração pelo
 responsável desse serviço. Nenhum outro microsserviço é modificado.
 A configuração cloud é adicional e não altera o Compose/gateway local.
+A imagem usa `docker.io/<INVENTORY_DOCKERHUB_USERNAME>/<repositorio>-inventory`,
+com o nome do repositório derivado de `github.repository` e labels OCI de origem,
+revisão e versão. O usuário Docker fica na Variable `INVENTORY_DOCKERHUB_USERNAME`
+e o token de publicação no Secret `INVENTORY_DOCKERHUB_TOKEN`. O deploy exige
+digest Docker Hub e origem compatível configurada no Render. A migração preserva
+as imagens históricas GHCR e só habilita o CD após conferir ambas as origens.
+Environments, Variables e Secrets
+são configurados separadamente em cada repositório e não são transferidos
+por Pull Request. O fork reutiliza os serviços Inventory DEV/HOMOL autorizados;
+a ativação do CD depende da configuração e validação do próprio fork.
+Instruções: [CI/CD no fork](inventory-fork-cicd.md).
 DEV e HOMOL usam quatro bancos lógicos (write/read por ambiente) e mensageria
 separada por vhost/instância. Na implantação atual, o usuário optou pela mesma
 credencial PostgreSQL nos dois ambientes; isso separa os dados por banco,

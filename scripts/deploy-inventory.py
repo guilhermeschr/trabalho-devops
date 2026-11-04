@@ -12,8 +12,8 @@ API = 'https://api.render.com/v1'
 FAILED = {'build_failed', 'update_failed', 'pre_deploy_failed', 'canceled', 'deactivated'}
 
 
-def request(url, *, token=None, payload=None):
-    headers = {'Accept': 'application/json'}
+def request(url, *, token=None, payload=None, accept='application/json'):
+    headers = {'Accept': accept}
     if token:
         headers['Authorization'] = 'Bearer ' + token
     data = None
@@ -38,8 +38,8 @@ def api(path, token, payload=None):
 def deploy(service, image, token, timeout=900):
     if not re.fullmatch(r'srv-[a-z0-9]+', service):
         raise ValueError('ID de servico Render invalido')
-    if not re.fullmatch(r'ghcr\.io/[a-z0-9._/-]+@sha256:[0-9a-f]{64}', image):
-        raise ValueError('A imagem deve usar GHCR e digest sha256')
+    if not re.fullmatch(r'docker\.io/[a-z0-9]+(?:[._-][a-z0-9]+)*/[a-z0-9]+(?:[._-][a-z0-9]+)*@sha256:[0-9a-f]{64}', image):
+        raise ValueError('A imagem deve usar Docker Hub e digest sha256')
     path = '/services/' + service + '/deploys'
     started = api(path, token, {'imageUrl': image})
     deploy_id = started['id']
@@ -82,7 +82,7 @@ def verify(base, environment, timeout=180):
         '/docs-json': 200 if environment == 'dev' else 404,
     }
     for path, status in expected.items():
-        actual, _ = request(base + path)
+        actual, _ = request(base + path, accept='text/html' if path == '/docs' else 'application/json')
         if actual != status:
             raise RuntimeError(f'Validacao {path}: esperado {status}, recebido {actual}')
     # POST sem credencial/corpo de negocio: valida a rota sem movimentar estoque.
