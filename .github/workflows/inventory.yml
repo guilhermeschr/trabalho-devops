@@ -62,7 +62,6 @@ jobs:
     timeout-minutes: 25
     permissions:
       contents: read
-      packages: write
     outputs:
       image: ${{ steps.names.outputs.image }}
       digest: ${{ steps.app.outputs.digest }}
@@ -73,6 +72,8 @@ jobs:
         shell: python
         env:
           REPOSITORY: ${{ github.repository }}
+          DOCKERHUB_USERNAME: ${{ vars.INVENTORY_DOCKERHUB_USERNAME }}
+          PUBLISH_IMAGE: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') }}
           BRANCH: ${{ github.ref_name }}
           SHA: ${{ github.sha }}
         run: |
@@ -80,18 +81,24 @@ jobs:
           version = ET.parse('services/inventory/pom.xml').getroot().find('{*}version').text
           if not re.fullmatch(r'(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)', version):
               raise SystemExit('Use uma versao SemVer X.Y.Z no pom.xml')
-          image = 'ghcr.io/' + os.environ['REPOSITORY'].lower() + '-inventory'
+          username = os.environ['DOCKERHUB_USERNAME']
+          if not username and os.environ['PUBLISH_IMAGE'] != 'true':
+              username = 'local'
+          if not re.fullmatch(r'[a-z0-9]+(?:[._-][a-z0-9]+)*', username):
+              raise SystemExit('Configure INVENTORY_DOCKERHUB_USERNAME nas Variables do repositorio')
+          repository = os.environ['REPOSITORY'].lower().split('/')[1]
+          image = 'docker.io/' + username + '/' + repository + '-inventory'
           suffix = '-homol' if os.environ['BRANCH'] == 'main' else '-dev'
           tag = version + suffix + '-' + os.environ['SHA']
           with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
-              out.write(f'image={image}\ntag={tag}\n')
+              out.write(f'image={image}\ntag={tag}\nversion={version}\n')
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: docker.io
+          username: ${{ vars.INVENTORY_DOCKERHUB_USERNAME }}
+          password: ${{ secrets.INVENTORY_DOCKERHUB_TOKEN }}
       - name: Imagem Spring
         id: app
         uses: docker/build-push-action@v6
@@ -101,6 +108,11 @@ jobs:
           platforms: linux/amd64
           push: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') }}
           tags: ${{ steps.names.outputs.image }}:${{ steps.names.outputs.tag }}
+          labels: |
+            org.opencontainers.image.title=inventory-service
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.names.outputs.version }}
           cache-from: type=gha,scope=inventory
           cache-to: type=gha,mode=max,scope=inventory
   deploy:

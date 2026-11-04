@@ -6,7 +6,7 @@ from unittest.mock import patch
 spec = importlib.util.spec_from_file_location('deploy_inventory', Path(__file__).with_name('deploy-inventory.py'))
 deploy = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(deploy)
-IMAGE = 'ghcr.io/example/inventory@sha256:' + 'a' * 64
+IMAGE = 'docker.io/example/inventory@sha256:' + 'a' * 64
 
 
 class DeploymentTest(unittest.TestCase):
@@ -28,8 +28,23 @@ class DeploymentTest(unittest.TestCase):
     @patch.object(deploy, 'api')
     def test_tag_cannot_replace_digest(self, api):
         with self.assertRaises(ValueError):
-            deploy.deploy('srv-123', 'ghcr.io/example/inventory:latest', 'test-token')
+            deploy.deploy('srv-123', 'docker.io/example/inventory:latest', 'test-token')
         api.assert_not_called()
+
+    def test_only_docker_hub_repository_digests_are_accepted(self):
+        invalid_images = [
+            'ghcr.io/example/inventory@sha256:' + 'a' * 64,
+            'example.com/example/inventory@sha256:' + 'a' * 64,
+            'docker.io/inventory@sha256:' + 'a' * 64,
+            'docker.io/user:password@example/inventory@sha256:' + 'a' * 64,
+            'docker.io/example/../inventory@sha256:' + 'a' * 64,
+            'docker.io/example/inventory@sha256:invalid',
+        ]
+        for image in invalid_images:
+            with self.subTest(image=image), patch.object(deploy, 'api') as api:
+                with self.assertRaises(ValueError):
+                    deploy.deploy('srv-123', image, 'test-token')
+                api.assert_not_called()
 
     @patch.object(deploy.time, 'monotonic', side_effect=[0, 901])
     @patch.object(deploy, 'api', return_value={'id': 'dep-123'})
@@ -45,10 +60,22 @@ class DeploymentTest(unittest.TestCase):
                 self.assertEqual({}, kwargs.get('payload'))
                 return internal_status, b''
             if url.endswith('/docs') or url.endswith('/docs-json'):
+                expected_accept = 'text/html' if url.endswith('/docs') else 'application/json'
+                self.assertEqual(expected_accept, kwargs.get('accept'))
                 status = 200 if environment == 'dev' else 404
                 return (200 if swagger_wrong else status), b''
             return 401, b''
         return respond
+
+    @patch.object(deploy.urllib.request, 'urlopen')
+    def test_http_request_preserves_html_accept_header(self, urlopen):
+        response = urlopen.return_value.__enter__.return_value
+        response.status = 200
+        response.read.return_value = b'<html>Swagger</html>'
+        self.assertEqual((200, b'<html>Swagger</html>'), deploy.request(
+            'https://inventory.example/docs', accept='text/html'
+        ))
+        self.assertEqual('text/html', urlopen.call_args.args[0].get_header('Accept'))
 
     def test_dev_and_homol_public_contracts(self):
         for environment in ('dev', 'homol'):
