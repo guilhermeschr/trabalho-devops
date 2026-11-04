@@ -3,6 +3,8 @@
 O estoque permanece em `services/inventory` neste monorepo. O workflow é
 `.github/workflows/inventory.yml`; os demais microsserviços não foram alterados.
 
+Para executar no fork sob administração própria, consulte [CI/CD do Inventory no fork](inventory-fork-cicd.md).
+
 ## Estado da entrega
 
 A lista abaixo distingue arquivos preparados de etapas validadas remotamente.
@@ -175,19 +177,20 @@ A alteração foi preparada localmente; não representa provisionamento ou deplo
 Bancos CQRS e RabbitMQ continuam necessários e seu provedor ainda depende da
 escolha do grupo. Não há contratação de recursos nesta alteração.
 
-## GHCR
+## Docker Hub
 
-Habilite GitHub Actions e permissão de escrita em Packages para o workflow.
-`GITHUB_TOKEN` é emitido automaticamente pelo GitHub; não crie um token manual
-para publicar no CI. A imagem Linux amd64 usa contexto Docker da raiz.
+A configuração atual do Inventory publica no Docker Hub. O histórico anterior
+usava GHCR; suas imagens são preservadas. O job usa a Variable de repositório
+`INVENTORY_DOCKERHUB_USERNAME` e o Secret `INVENTORY_DOCKERHUB_TOKEN`.
+O token permite leitura/escrita, sem exclusão, e não integra o código.
+A imagem do fork é `docker.io/d2gtrabalhos/trabalho-devops-inventory`.
+O usuário vem da Variable; o nome `<repositorio>-inventory` vem de
+`github.repository`. Labels OCI registram origem, revisão e versão.
 
-Imagens resultantes neste repositório:
-
-- `ghcr.io/guilhermeschr/trabalho-devops-inventory`
-
-Por padrão o pacote pode ser privado. Para o Render conseguir baixá-lo,
-configure uma credencial do registro com `read:packages`, ou torne o pacote
-público intencionalmente. Nunca grave essa credencial no repositório.
+Somente pushes em develop/main publicam, com tags SemVer/ambiente/SHA.
+Features, PRs e workflow_dispatch apenas constroem. O CD exige digest Docker Hub,
+origem compatível nos serviços Render e `INVENTORY_DEPLOY_ENABLED=true`.
+Instruções e sequência de migração: [Docker Hub](inventory-dockerhub.md).
 
 ## Rede e serviços no Render
 
@@ -199,8 +202,8 @@ Para cada ambiente, use **um Web Service público Spring**, sem gateway dedicado
 | HOMOL | `inventory-homol` |
 
 O CD existente usa serviço de imagem existente (image-backed), com a imagem
-GHCR do Inventory. O GitHub aprova e publica; o script solicita o digest
-aprovado pela API Render. Um primeiro build aprovado no GHCR é necessário.
+Docker Hub do Inventory. O GitHub aprova e publica; o script solicita o digest
+aprovado pela API Render. Um primeiro build aprovado no Docker Hub é necessário.
 Não habilite deploy automático de branches no Render em paralelo ao CD.
 Selecione apenas uma opção gratuita disponível no painel antes de provisionar.
 
