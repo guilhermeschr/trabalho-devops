@@ -97,10 +97,9 @@ export function unexpectedResponse(
   return new Error(`Resposta inesperada de ${service}: HTTP ${response.status}`);
 }
 
-export function baseUrl(
-  configService: ConfigService,
-  key: string,
-  fallback: string,
-): string {
-  return configService.get<string>(key, fallback).replace(/\/+$/u, '');
+/** URL base obrigatória; sem fallback para não embutir endereços HTTP no código. */
+export function baseUrl(configService: ConfigService, key: string): string {
+  let url = configService.getOrThrow<string>(key);
+  while (url.endsWith('/')) url = url.slice(0, -1);
+  return url;
 }

@@ -118,12 +118,24 @@ describe('clientes REST internos', () => {
       await new ProductsHttpClient(
         new ConfigService({
           INTERNAL_SERVICE_TOKEN: 't',
+          PRODUCTS_SERVICE_URL: 'https://products.example',
           ORDERS_HTTP_TIMEOUT_MS: 'abc',
         }),
       ).getProduct(PRODUCT_ID, context);
 
       expect(timeout).toHaveBeenCalledWith(3000);
-      expect(fetchMock.mock.calls[0]?.[0]).toContain('http://products-service:3000/');
+      expect(fetchMock.mock.calls[0]?.[0]).toBe(
+        `https://products.example/internal/v1/products/${PRODUCT_ID}`,
+      );
+    });
+
+    it('exige URL configurada sem chamar a dependência', async () => {
+      await expect(
+        new ProductsHttpClient(
+          new ConfigService({ INTERNAL_SERVICE_TOKEN: 't' }),
+        ).getProduct(PRODUCT_ID, context),
+      ).rejects.toThrow('PRODUCTS_SERVICE_URL');
+      expect(fetchMock).not.toHaveBeenCalled();
     });
   });
 

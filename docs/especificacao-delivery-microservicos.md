@@ -1852,6 +1852,9 @@ Porta: `PORT` → `ORDERS_PORT` → 3000. Em DEV e HOMOL são obrigatórios
 `JWT_SECRET` e de `INTERNAL_SERVICE_TOKEN`. As URLs de Produtos e Estoque
 devem ser origens HTTPS sem credenciais, caminho, query ou fragmento.
 `ORDERS_HTTP_TIMEOUT_MS`, quando definido, deve ser inteiro entre 1 e 60000.
+`PRODUCTS_SERVICE_URL` e `INVENTORY_SERVICE_URL` são obrigatórias em todos os
+ambientes: os clientes REST não têm endereço padrão embutido e falham sem
+chamar a dependência quando a variável está ausente (o Compose as define).
 `ORDERS_DB_SSL=true` habilita TLS PostgreSQL com validação de certificado.
 DEV/HOMOL seguem a tabela de ambientes da seção 22.1.
 

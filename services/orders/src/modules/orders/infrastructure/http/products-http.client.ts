@@ -23,7 +23,6 @@ export class ProductsHttpClient implements ProductsClient {
     const url = `${baseUrl(
       this.configService,
       'PRODUCTS_SERVICE_URL',
-      'http://products-service:3000',
     )}/internal/v1/products/${encodeURIComponent(productId)}`;
     const response = await callInternal(
       this.configService,
