@@ -21,3 +21,6 @@ monitoring/products/.secrets/
 
 monitoring/auth/targets/
 monitoring/auth/.secrets/
+
+monitoring/orders/targets/
+monitoring/orders/.secrets/
