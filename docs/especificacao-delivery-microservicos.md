@@ -1,8 +1,8 @@
 # Especificação do Sistema de Delivery com Microsserviços
 
 **Status:** especificação de referência para implementação
-**Versão:** 2.21
-**Última atualização:** 2026-11-03
+**Versão:** 2.23
+**Última atualização:** 2026-11-08
 **Idioma:** português
 **Objetivo:** orientar a construção, execução e validação de um sistema simples de delivery com foco em DevOps.
 
@@ -10,6 +10,7 @@
 
 | Versão | Data | Alteração |
 |---|---|---|
+| 2.23 | 2026-11-08 | Inventory: padronizado nome Delivery Inventory, criado projeto Sonar no monorepo da organização guilhermeschr e consolidada documentação do CI/CD no repositório original |
 | 2.21 | 2026-11-03 | Inventory: consolidadas migração Docker Hub, negociação HTML/JSON do deploy e validação de PRs sem credenciais; preservadas integralmente as seções e o histórico dos demais serviços do original |
 | 2.17 | 2026-11-02 | Produtos image-backed no Render sem conexão Git; atualização exclusiva pelo CD via API com digest aprovado |
 | 2.16 | 2026-11-02 | Produtos T2: versão pública, PORT, TLS PostgreSQL, métricas protegidas, SonarCloud, releases Docker Hub e CD Render por digest; monitoramento local e configuração externa com evidências próprias |
@@ -1575,7 +1576,11 @@ por ambiente; pedir JSON à interface HTML não valida sua disponibilidade.
 Os identificadores `INVENTORY_SONAR_ORGANIZATION` e
 `INVENTORY_SONAR_PROJECT_KEY` são lidos de Variables ou, quando vazias,
 de Secrets do repositório. `INVENTORY_SONAR_TOKEN` permanece somente em Secrets.
-O projeto público usa uma organização no plano OSS, com suporte a branches.
+O projeto público de entrega é `Delivery Inventory`, chave `guilhermeschr_inventory`,
+na organização OSS `guilhermeschr`, vinculado ao mesmo monorepo dos demais serviços.
+Sua análise é exclusiva de `services/inventory`; não inclui os outros microsserviços.
+O nome exibido pelo Maven segue `Delivery Inventory`; o artifactId técnico
+`inventory-service` é preservado.
 
 Cloud: somente Estoque usa um Render Web Service público, com acesso direto
 ao Spring pela `PORT`, sem Nginx dedicado. Todas as rotas habilitadas ficam
@@ -1595,9 +1600,9 @@ digest Docker Hub e origem compatível configurada no Render. A migração prese
 as imagens históricas GHCR e só habilita o CD após conferir ambas as origens.
 Environments, Variables e Secrets
 são configurados separadamente em cada repositório e não são transferidos
-por Pull Request. O fork reutiliza os serviços Inventory DEV/HOMOL autorizados;
-a ativação do CD depende da configuração e validação do próprio fork.
-Instruções: [CI/CD no fork](inventory-fork-cicd.md).
+por Pull Request. O controlador definitivo do CD é o repositório
+`guilhermeschr/trabalho-devops`; cópias do repositório não devem implantar
+nos mesmos serviços em paralelo. Instruções: [CI/CD do Inventory](inventory-cicd.md).
 DEV e HOMOL usam quatro bancos lógicos (write/read por ambiente) e mensageria
 separada por vhost/instância. Na implantação atual, o usuário optou pela mesma
 credencial PostgreSQL nos dois ambientes; isso separa os dados por banco,
@@ -1605,9 +1610,11 @@ mas não isola as permissões entre ambientes. Swagger fica habilitado em DEV
 e desabilitado em HOMOL (`SWAGGER_ENABLED=false`, `NODE_ENV=production`).
 
 Prometheus e Grafana têm configuração adicional em `monitoring/inventory/`.
-Provisionamento, secrets, plano Sonar, URLs, dashboards com dados reais e
-pipeline remoto ainda devem ser configurados/validados; não estão cobertos
-pelas evidências históricas da seção 14. Instruções e checklist de entrega:
+Os deploys automáticos DEV/HOMOL do repositório original e a coleta real foram
+validados em 03/11/2026; as evidências e os limites operacionais estão no guia.
+A migração de organização Sonar exige nova validação do Quality Gate antes de
+considerar essa etapa concluída. As evidências históricas da seção 14 não
+substituem a validação T2. Instruções e checklist de entrega:
 [DevOps do Estoque](inventory-devops.md).
 
 
