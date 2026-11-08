@@ -1,4 +1,5 @@
 import { DataSource } from 'typeorm';
+import { databaseTls } from '../../../../operations/runtime-config';
 import { OrderOrmEntity } from './entities/order.orm-entity';
 import { CreateOrdersTable1730000000000 } from './migrations/1730000000000-create-orders-table';
 
@@ -12,4 +13,5 @@ export default new DataSource({
   entities: [OrderOrmEntity],
   migrations: [CreateOrdersTable1730000000000],
   synchronize: false,
+  ssl: databaseTls(process.env.ORDERS_DB_SSL),
 });

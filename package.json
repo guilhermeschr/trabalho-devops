@@ -18,7 +18,7 @@
     "dev:auth": "npm --workspace services/auth run start:dev",
     "test:auth": "npm --workspace services/auth run test:cov --",
     "verify:swagger:auth": "node scripts/verify-auth-swagger.mjs",
-    "build:orders": "npm --workspace services/orders run build",
+    "build:orders": "npm --workspace services/orders run build && node scripts/service-build-info.mjs orders",
     "dev:orders": "npm --workspace services/orders run start:dev",
     "test:orders": "npm --workspace services/orders run test:cov --",
     "verify:swagger:orders": "node scripts/verify-orders-swagger.mjs",

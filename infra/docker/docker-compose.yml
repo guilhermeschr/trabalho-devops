@@ -210,6 +210,8 @@ services:
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       ORDERS_PORT: 3000
+      METRICS_TOKEN: ${ORDERS_METRICS_TOKEN:-}
+      ORDERS_DB_SSL: ${ORDERS_DB_SSL:-false}
       SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
       JWT_SECRET: ${JWT_SECRET:-change-me-in-development}
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-change-me-internal-development}

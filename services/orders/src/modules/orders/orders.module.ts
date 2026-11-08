@@ -20,6 +20,7 @@ import {
   TypeOrmOrderRepository,
 } from './infrastructure/persistence/repositories/typeorm-order.repository';
 import { OrdersController } from './presentation/http/orders.controller';
+import { databaseTls } from '../../operations/runtime-config';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { OrdersController } from './presentation/http/orders.controller';
         entities: [OrderOrmEntity],
         migrations: [CreateOrdersTable1730000000000],
         migrationsRun: true,
+        ssl: databaseTls(configService.get<string>('ORDERS_DB_SSL')),
         synchronize: false,
       }),
     }),
