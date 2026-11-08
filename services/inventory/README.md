@@ -1,4 +1,4 @@
-# Estoque — Java com Spring Boot
+# Delivery Inventory — Estoque com Spring Boot
 
 Aplicação Java 21, Spring Boot 3.5.16 e Maven. Produtos continua em NestJS.
 A migração preserva os contratos HTTP, os eventos RabbitMQ e as tabelas PostgreSQL.

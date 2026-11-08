@@ -1,320 +1,139 @@
-# T2 — DevOps do Estoque
+# T2 — Delivery Inventory
 
-O estoque permanece em `services/inventory` neste monorepo. O workflow é
-`.github/workflows/inventory.yml`; os demais microsserviços não foram alterados.
+Guia de entrega do microsserviço de Estoque, desenvolvido em Java 21 e Spring Boot.
+Repositório definitivo: [guilhermeschr/trabalho-devops](https://github.com/guilhermeschr/trabalho-devops).
+A aplicação permanece em `services/inventory`; os outros serviços têm pipelines próprios.
 
-Para executar no fork sob administração própria, consulte [CI/CD do Inventory no fork](inventory-fork-cicd.md).
+## Acessos
 
-## Estado da entrega
-
-A lista abaixo distingue arquivos preparados de etapas validadas remotamente.
-Marque novas etapas somente depois de guardar a evidência correspondente.
-
-- [x] Actuator, readiness e Prometheus protegidos por token próprio.
-- [x] Testes automatizados, PostgreSQL/Testcontainers e JaCoCo no Maven.
-- [x] Workflow, Dockerfiles e script de CD escritos.
-- [x] Prometheus, alertas e dashboard Grafana versionados.
-- [x] Projeto Sonar OSS configurado; análise e Quality Gate da feature aprovados remotamente.
-- [x] Principal do Sonar alinhada a main; develop incluída no padrão de branches longas.
-- [x] Análises de develop/homolog aprovadas; homolog foi configurada como branch longa no fluxo anterior.
-- [ ] Análise inicial de main e promoção definitiva main/HOMOL validadas.
-- [x] Imagens de DEV e da homologação anterior publicadas no GHCR pelo workflow.
-- [x] DEV e HOMOL provisionados no plano Free e deploys manuais validados.
-- [ ] Deploy automático nos dois ambientes configurado e validado.
-- [x] URLs DEV/HOMOL registradas com endereços reais.
-- [ ] Dashboard com dados reais disponível para demonstração.
-- [ ] Prometheus coletando dados reais e Grafana exibindo tráfego.
-- [ ] Execuções do pipeline e evidências anexadas à entrega.
-
-## Validação da alteração de 2026-10-28
-
-`mvn -B -f services/inventory/pom.xml verify` com Java 21 e Docker passou:
-23 testes unitários e 10 de integração, nenhum ignorado. Os testes de integração
-confirmam diretamente no Spring o débito com token, rejeição sem token e os
-contratos existentes. JaCoCo: 97,06% instruções, 96,08% branches, 96,58% linhas
-e 97,00% métodos, acima dos limiares de 50%.
-Os 9 testes do controle de deploy passaram, incluindo a implantação de apenas
-um serviço e a rejeição de débito público sem token (403). Os testes rejeitam
-404 nessa rota, pois ela deve estar acessível diretamente. Não houve validação
-em URL Render, push ou deploy nesta alteração.
-
-## Validação da alteração de 2026-10-31
-
-Actionlint aprovou o workflow. Uma matriz de 45 cenários verificou pushes,
-PRs e execuções manuais nas branches develop, homolog, main, feature e outra,
-com deploy habilitado, desabilitado e sem configuração. Somente pushes em
-develop/homolog publicam; somente esses pushes, com habilitação explícita,
-podem implantar em DEV/HOMOL. Maven verify passou com 23 testes unitários,
-10 de integração e todos os limiares JaCoCo; os 9 testes de controle de deploy
-também passaram. A validação é local; não houve push, criação de branch,
-merge, configuração remota do Sonar/Environments ou deploy nesta alteração.
-
-## Correção após revisão do enunciado em 2026-10-31
-
-O workflow foi realinhado para develop/DEV e main/HOMOL. Actionlint passou;
-45 cenários de branch/evento/habilitação confirmaram publicação somente em
-pushes de develop/main e deploy apenas com habilitação explícita. Maven verify
-passou com 23 testes unitários, 10 de integração e cobertura JaCoCo aprovada;
-os 9 testes do controle de deploy também passaram. Não houve mudança no
-código de negócio ou nos demais microsserviços.
-
-## Git Flow e versão
-
-O enunciado T2 define `feature/*` → PR para `develop` (DEV) → PR para `main` (HOMOL).
-A configuração anterior com branch `homolog` foi substituída após revisar o PDF.
-A branch histórica não precisa ser apagada, mas não dispara o workflow.
-
-O workflow aceita pushes em `main`, `develop` e `feature/*`, e PRs destinados
-a `main` e `develop`, limitados aos caminhos do Inventory. Somente pushes em
-`develop`/`main` publicam imagens. Features, PRs e execuções manuais apenas
-validam e constroem, sem publicar nem implantar.
-O workflow executa testes/cobertura e Sonar; a imagem depende do Quality Gate.
-PRs de forks e Dependabot sem secrets próprios executam testes sem Sonar;
-essa execução não comprova análise Sonar. Nunca use `pull_request_target`
-para executar código de terceiros com secrets.
-
-O job de deploy mapeia develop para DEV e main para HOMOL. Exige também a
-Variable de repositório `INVENTORY_DEPLOY_ENABLED=true`; ausente ou diferente
-de `true`, fica pulado. A chave só deve ser habilitada após configurar IDs,
-URLs e credenciais dos dois ambientes. Atualmente está desabilitada: os
-primeiros deploys foram feitos no painel Render, ainda sem evidência de CD
-automático. O GitHub retornou 403 ao tentar criar HOMOL: falta permissão de
-administrador do repositório para preparar os Environments.
-
-A versão oficial está em `services/inventory/pom.xml`, inicialmente `0.1.0`.
-Incremente PATCH para correção compatível, MINOR para funcionalidade compatível
-e MAJOR para quebra de contrato; registre a mudança no README/especificação.
-Tags das imagens usam `X.Y.Z-dev-<sha>` em DEV e `X.Y.Z-homol-<sha>` em HOMOL.
-O SHA distingue builds da mesma versão. Não se usa `latest` no CD: a referência
-implantada é sempre `imagem@sha256:...`. Tags Git `inventory-vX.Y.Z` podem ser
-criadas na main após a aprovação da versão, somente por solicitação do usuário.
-Os artefatos Maven mantêm a versão do POM; a tag Docker também identifica o commit.
-
-## SonarCloud
-
-Crie um projeto exclusivo para Estoque, associado ao mesmo repositório.
-Desative a análise automática do Sonar: a análise será por Maven/CI, com o XML
-do JaCoCo. Mantenha `main` como principal e configure `develop` como branch longa.
-O padrão atual também inclui `homolog` por histórico; isso não muda os
-gatilhos do workflow nem exige usar essa branch. Inicialize a análise da main
-antes de analisar branches/PRs. Configure a proteção de main/develop para exigir
-o check Inventory e o Quality Gate; não autorize bypass silencioso do gate.
-
-O plano Free comum só analisa a branch principal. Para este repositório
-público, a opção gratuita é uma organização no plano OSS, que permite análise
-de branches e PRs. A organização OSS criada para o estoque é
-`danielhoepers-devops`, e o projeto público é `danielhoepers-devops_inventory`.
-O workflow exige um plano com suporte às branches analisadas; não ignora um
-Quality Gate reprovado. As análises remotas de feature/develop/homolog foram aprovadas; a primeira
-análise da main e seu fluxo definitivo ainda precisam ser validados.
-
-Configuração no repositório GitHub:
-
-| Tipo | Nome |
+| Componente | Endereço |
 |---|---|
-| Secret | `INVENTORY_SONAR_TOKEN` |
-| Variable ou Secret | `INVENTORY_SONAR_ORGANIZATION` |
-| Variable ou Secret | `INVENTORY_SONAR_PROJECT_KEY` |
+| Workflow | [Inventory — GitHub Actions](https://github.com/guilhermeschr/trabalho-devops/actions/workflows/inventory.yml) |
+| Sonar de entrega | [Delivery Inventory](https://sonarcloud.io/project/overview?id=guilhermeschr_inventory) |
+| DEV | https://inventory-dev.onrender.com |
+| Swagger DEV | https://inventory-dev.onrender.com/docs |
+| HOMOL | https://inventory-homol.onrender.com |
+| Imagens | https://hub.docker.com/r/d2gtrabalhos/trabalho-devops-inventory/tags |
+| Prometheus local | http://localhost:9090/targets |
+| Grafana local | http://localhost:3001/d/inventory-t2 |
 
-Os identificadores podem ser cadastrados em Variables ou Secrets. O workflow
-prefere Variables quando preenchidas e usa Secrets como alternativa. O token
-é aceito somente em Secrets. Nenhum valor é gravado no código ou impresso
-pelo script de validação.
+Prometheus e Grafana dependem dos containers locais e da máquina ligada.
+Seus endereços localhost não são URLs públicas para o professor.
 
-A primeira execução remota aprovou os testes e a cobertura, mas parou antes
-do scanner porque os identificadores não estavam em Variables. Depois, o
-usuário cadastrou os identificadores em Secrets; o workflow foi adaptado para
-ler essa configuração sem exigir novo cadastro.
+## Fluxo exigido pelo trabalho
 
-Fontes: [plano OSS](https://docs.sonarsource.com/sonarqube-cloud/administering-sonarcloud/managing-subscription/subscription-plans#oss-plan),
-[limitações de branches do SonarCloud](https://docs.sonarsource.com/sonarqube-cloud/analyzing-source-code/branch-analysis/branch-analysis).
+`feature/*` → PR para `develop` (DEV) → PR para `main` (HOMOL).
 
-## Validação local
+O workflow [inventory.yml](../.github/workflows/inventory.yml) executa:
 
-Em 2026-10-25, no Mac com Java 21 e Docker, `mvn -B -f
-services/inventory/pom.xml verify` terminou com BUILD SUCCESS: 23 testes
-unitários e 10 de integração, nenhum ignorado. JaCoCo: 97,06% instruções,
-96,08% branches, 96,58% linhas e 97,00% métodos (limiares de 50%).
-Oito testes do script de deploy passaram. Actionlint validou o workflow;
-Promtool validou a configuração e as duas regras com tokens fictícios em
-arquivos temporários. Targets reais ainda não existem.
-Os builds Docker de Spring e gateway passaram no Mac (ARM64). O workflow
-configura o build de publicação para Linux amd64, ainda sem execução remota.
-Nginx validou a configuração e bloqueou caminhos
-internos (inclusive com ponto e vírgula) e `/actuator/env` em um container
-local. Esse teste verifica o gateway; não comprova isolamento no Render.
+1. Maven `verify`: build, testes unitários, integração PostgreSQL e cobertura JaCoCo.
+2. Testes do script de implantação e análise Sonar com Quality Gate obrigatório.
+3. Build da imagem Docker, dependente da qualidade aprovada.
+4. Em pushes de develop/main, publicação no Docker Hub e deploy no ambiente correspondente.
+5. Acompanhamento do deploy até `live` e validação dos endpoints públicos.
 
-No Mac, selecione Java 21 antes de usar Maven:
+O filtro de caminhos inclui `services/inventory/**`, o workflow, seus scripts
+e o monitoramento do Inventory. Uma alteração apenas no README da raiz não
+aciona esse pipeline. Para demonstrar, altere `services/inventory/README.md`.
+Features, PRs e execuções manuais validam sem publicar nem implantar.
 
-```sh
-export JAVA_HOME=$(/usr/libexec/java_home -v 21)
-export PATH="$JAVA_HOME/bin:$PATH"
-mvn -B -f services/inventory/pom.xml verify
-```
+Configuração de Variables, Secrets, Environments e Sonar:
+[CI/CD do Inventory](inventory-cicd.md).
 
-## Validação remota da feature
+## Nomes e versão
 
-Em 2026-10-25, a [execução Inventory 40221732500](https://github.com/guilhermeschr/trabalho-devops/actions/runs/40221732500)
-terminou com sucesso no commit `69bc788` da `feature/inventory-devops`.
-Passaram 23 testes unitários, 10 de integração, os limiares JaCoCo, os testes
-do script de deploy, o Quality Gate do Sonar e os builds Docker Spring/gateway.
-A publicação no GHCR e o deploy foram pulados pela regra da feature.
+O nome de apresentação no Sonar e no Maven é **Delivery Inventory**, no padrão
+dos projetos Delivery Auth, Delivery Orders e Delivery Products.
+O artifactId `inventory-service`, o workflow `Inventory`, as URLs Render,
+os nomes dos bancos e o repositório da imagem permanecem compatíveis.
 
-Em 2026-10-26, a principal do Sonar foi alinhada a `main` e o padrão longo
-foi configurado como `^(develop|(branch|release)-.*)$`. A segunda tentativa
-da mesma execução também passou em testes, cobertura, Quality Gate e builds
-Docker, sem o aviso de referência `master` ausente. A publicação das imagens
-e o deploy permaneceram pulados. Main/develop ainda não têm análise inicial;
-o gate da feature não substitui essa validação posterior.
+A versão está em `services/inventory/pom.xml`: `0.1.0`.
+Use Semantic Versioning: PATCH para correções compatíveis, MINOR para novas
+funcionalidades compatíveis e MAJOR para quebra de contrato.
+Tags Docker incluem versão, ambiente e commit. O deploy usa digest imutável.
+Detalhes: [Docker Hub](inventory-dockerhub.md).
 
-### Hospedagem direta do Inventory
+## Rede, rotas e ambientes
 
-Em 2026-10-28, foi aprovado publicar somente o Inventory como Web Service
-público no Render, sem Nginx dedicado, preservando a autenticação. O pipeline
-passa a construir e implantar apenas a imagem Spring. O Compose local e o
-Nginx compartilhado permanecem iguais, assim como todos os outros serviços.
-A alteração foi preparada localmente; não representa provisionamento ou deploy.
-Bancos CQRS e RabbitMQ continuam necessários e seu provedor ainda depende da
-escolha do grupo. Não há contratação de recursos nesta alteração.
+Há um Web Service público Spring por ambiente, sem Nginx dedicado na cloud.
+O Compose local mantém seu gateway e suas regras. `PORT` do Render tem
+precedência sobre `INVENTORY_PORT`; o padrão local é 3000.
 
-## Docker Hub
-
-A configuração atual do Inventory publica no Docker Hub. O histórico anterior
-usava GHCR; suas imagens são preservadas. O job usa a Variable de repositório
-`INVENTORY_DOCKERHUB_USERNAME` e o Secret `INVENTORY_DOCKERHUB_TOKEN`.
-O token permite leitura/escrita, sem exclusão, e não integra o código.
-A imagem do fork é `docker.io/d2gtrabalhos/trabalho-devops-inventory`.
-O usuário vem da Variable; o nome `<repositorio>-inventory` vem de
-`github.repository`. Labels OCI registram origem, revisão e versão.
-
-Somente pushes em develop/main publicam, com tags SemVer/ambiente/SHA.
-Features, PRs e workflow_dispatch apenas constroem. O CD exige digest Docker Hub,
-origem compatível nos serviços Render e `INVENTORY_DEPLOY_ENABLED=true`.
-Instruções e sequência de migração: [Docker Hub](inventory-dockerhub.md).
-
-## Rede e serviços no Render
-
-Para cada ambiente, use **um Web Service público Spring**, sem gateway dedicado:
-
-| Ambiente | Web Service |
-|---|---|
-| DEV | `inventory-dev` |
-| HOMOL | `inventory-homol` |
-
-O CD existente usa serviço de imagem existente (image-backed), com a imagem
-Docker Hub do Inventory. O GitHub aprova e publica; o script solicita o digest
-aprovado pela API Render. Um primeiro build aprovado no Docker Hub é necessário.
-Não habilite deploy automático de branches no Render em paralelo ao CD.
-Selecione apenas uma opção gratuita disponível no painel antes de provisionar.
-
-Spring escuta em `0.0.0.0` na `PORT` do ambiente (ou INVENTORY_PORT, padrão 3000).
-Use `/actuator/health/readiness` no health check e a origem HTTPS do próprio
-Web Service em `INVENTORY_APP_URL`. Não existem `INVENTORY_PRIVATE_HOST`,
-`INVENTORY_PRIVATE_PORT` ou serviço Nginx nessa configuração.
-
-| Rota direta | Proteção |
+| Rota | Proteção |
 |---|---|
 | `POST /api/v1/inventory` | JWT |
 | `GET /api/v1/inventory/{productId}` | JWT |
-| `POST /internal/v1/inventory/debit` | `X-Internal-Token` (403 sem token válido) |
-| `GET /health`, `/actuator/health` e `/actuator/health/readiness` | Sem token; sem detalhes dos bancos |
-| `GET /actuator/prometheus` | Bearer `METRICS_TOKEN` |
-| `/docs`, `/docs-json` e recursos Swagger | Habilitados apenas fora de produção |
+| `POST /internal/v1/inventory/debit` | `X-Internal-Token` |
+| `/health`, `/actuator/health`, `/actuator/health/readiness` | Sem token; sem detalhes internos |
+| `/actuator/prometheus` | Bearer `METRICS_TOKEN` |
+| `/docs` e `/docs-json` | Habilitados em DEV e desabilitados em HOMOL |
 
-A publicação direta mantém os caminhos e filtros existentes do Spring. O
-prefixo `/internal/` continua por compatibilidade; essa rota agora é alcançável
-pela internet e sua autorização depende do token, sem isolamento de rede HTTP.
-Pedidos poderá apontar `INVENTORY_SERVICE_URL` para a origem HTTPS do Inventory
-e enviar o token correspondente. Essa alteração cabe ao responsável de Pedidos;
-nenhum arquivo desse serviço foi modificado.
+Ser acessível na internet não elimina autenticação. A rota interna exige token,
+mas não tem isolamento de rede HTTP no Render. Não há alteração de contrato.
 
-## Bancos, RabbitMQ e configuração do Spring
+DEV usa `APP_ENV=dev`, `NODE_ENV=development`, `SWAGGER_ENABLED=true`.
+HOMOL usa `APP_ENV=homol`, `NODE_ENV=production`, `SWAGGER_ENABLED=false`
+e `SPRING_PROFILES_ACTIVE=production`.
 
-Crie quatro bancos lógicos: `inventory_dev_write`, `inventory_dev_read`,
-`inventory_homol_write` e `inventory_homol_read`. Podem compartilhar servidor,
-mas use credenciais e permissões isoladas por ambiente. Configure backups.
-Use os parâmetros reais do provedor; a aplicação executa as migrações Flyway.
-Para provedores que exigem parâmetros JDBC adicionais, sobrescreva
-`INVENTORY_WRITE_URL` e `INVENTORY_READ_URL` com URLs JDBC completas (por exemplo,
-`jdbc:postgresql://<host>:5432/<database>?sslmode=require`), sem senha na URL.
-Essas variáveis sobrescrevem `inventory.write.url`/`inventory.read.url` pelo
-mapeamento de ambiente do Spring.
+## Bancos e RabbitMQ
 
-Configure cada serviço Spring com seus próprios valores:
+São quatro bancos lógicos: `inventory_dev_write`, `inventory_dev_read`,
+`inventory_homol_write` e `inventory_homol_read`. A implantação existente usa
+um servidor PostgreSQL e o mesmo usuário, conforme opção do responsável.
+Os dados são separados por banco; as permissões desse usuário não isolam ambientes.
+As migrações Flyway são executadas na inicialização, sem apagar dados existentes.
+RabbitMQ separa DEV/HOMOL por vhost ou instância.
 
-| Grupo | Variáveis |
+| Grupo | Variáveis do serviço Render |
 |---|---|
 | Escrita | `INVENTORY_WRITE_DB_HOST`, `INVENTORY_WRITE_DB_PORT`, `INVENTORY_WRITE_DB_NAME`, `INVENTORY_WRITE_DB_USER`, `INVENTORY_WRITE_DB_PASSWORD` |
 | Leitura | `INVENTORY_READ_DB_HOST`, `INVENTORY_READ_DB_PORT`, `INVENTORY_READ_DB_NAME`, `INVENTORY_READ_DB_USER`, `INVENTORY_READ_DB_PASSWORD` |
+| JDBC opcional | `INVENTORY_WRITE_URL`, `INVENTORY_READ_URL` |
 | RabbitMQ | `RABBITMQ_URL`, `RABBITMQ_EXCHANGE`, `RABBITMQ_INVENTORY_QUEUE` |
 | Autenticação | `JWT_SECRET`, `INTERNAL_SERVICE_TOKEN`, `METRICS_TOKEN` |
-| DEV | `APP_ENV=dev`, `SWAGGER_ENABLED=true`, `NODE_ENV=development` |
-| HOMOL | `APP_ENV=homol`, `SWAGGER_ENABLED=false`, `NODE_ENV=production`, `SPRING_PROFILES_ACTIVE=production` |
 
-Use dois vhosts e usuários RabbitMQ separados, um por ambiente; a URL deve
-incluir o vhost corretamente escapado. Restrinja permissões ao exchange e à
-fila do estoque (ver seção 7.4 da especificação). Prefira `amqps://` nas conexões
-externas. JWT e token interno devem corresponder aos serviços do mesmo ambiente;
-METRICS_TOKEN é independente, forte e diferente nos dois ambientes.
+`*_DB_HOST` recebe somente o hostname. URLs JDBC completas podem incluir os
+parâmetros TLS exigidos pelo provedor; mantenha usuário/senha separados da URL.
+Use AMQPS no acesso externo ao RabbitMQ. JWT e token interno devem corresponder
+aos serviços do mesmo ambiente; o token de métricas é separado.
+As credenciais reais ficam no Render e nos GitHub Secrets, nunca no Git.
 
-## GitHub Environments e CD
+## Observabilidade
 
-Crie Environments `DEV` e `HOMOL`, sem aprovação manual obrigatória se o T2
-exigir deploy automático. Restrinja DEV a develop e HOMOL a main. Configure em
-cada um, sem sobrescrever valores de outros serviços:
+O Actuator/Micrometer produz métricas do Spring, HTTP, JVM, CPU e Hikari.
+O Prometheus coleta `/actuator/prometheus` a cada 15 segundos, usando o token
+de cada ambiente, e armazena séries temporais no seu volume Docker.
+O Grafana consulta o Prometheus em `http://prometheus:9090` e exibe os gráficos.
 
-| Tipo | Nome | Conteúdo |
-|---|---|---|
-| Secret | `INVENTORY_RENDER_API_KEY` | API key Render com acesso aos serviços |
-| Variable | `INVENTORY_RENDER_SERVICE_ID` | ID `srv-...` do Web Service Spring público |
-| Variable | `INVENTORY_APP_URL` | Origem HTTPS pública do Spring, sem caminho |
+Os sete painéis mostram coleta disponível, requisições por segundo, p95,
+erros 5xx, memória JVM, CPU e conexões de banco. O label `environment`
+separa DEV/HOMOL. `up` confirma a coleta, não a convergência CQRS.
+Existem regras de alerta, mas não há entrega de notificações configurada.
 
-O deploy só será habilitado, em uma etapa posterior, com a Variable de
-repositório `INVENTORY_DEPLOY_ENABLED=true`, após preparar os serviços,
-credenciais e restrições de branches dos Environments. Nenhum deploy é
-habilitado remotamente por esta alteração de arquivos.
+Configuração e inicialização: [monitoring/inventory/README.md](../monitoring/inventory/README.md).
+Não executar `docker compose down --volumes` para demonstrar o monitoramento.
 
-A API key é necessária para consultar o **deploy específico** até `live`.
-Um deploy hook sozinho apenas confirma aceite; por isso `RENDER_DEPLOY_HOOK`
-não é usado nesta implementação. O script implanta somente Spring e aguarda
-`live`. Finalmente exige readiness UP, 401 sem JWT nas rotas de negócio,
-401 sem token nas métricas, 403 no POST de débito sem token interno e
-Swagger 200 em DEV/404 em HOMOL. O POST de verificação usa corpo vazio e
-nenhuma credencial, sem movimentar estoque. Falha ou timeout falham o job.
-O script não efetua rollback automático. Se necessário, escolha um digest
-anterior aprovado e implante pelo painel; não apague bancos/volumes.
+## Evidências e pendências da entrega
 
-## Prometheus e Grafana
+Resultados confirmados no repositório original em 03/11/2026:
 
-Revisão em 2026-10-31: endpoints de métricas foram implementados e HOMOL
-respondeu HTTP 200 com token, incluindo JVM, CPU, conexões Hikari e histogramas
-HTTP com environment=homol. A configuração local contém sete painéis e duas
-regras de alerta, mas não havia containers de monitoramento em execução,
-arquivos de targets nem arquivos de tokens na pasta ignorada. Configuração
-versionada não comprova coleta ativa ou dashboard com dados reais.
-O PDF exige Prometheus, Grafana e dashboards; não especifica métricas mínimas,
-alertas, notificações ou hospedagem cloud dessas duas ferramentas.
+- [DEV aprovado — testes, Sonar, imagem e deploy](https://github.com/guilhermeschr/trabalho-devops/actions/runs/41761863828).
+- [HOMOL aprovado — testes, Sonar, imagem e deploy](https://github.com/guilhermeschr/trabalho-devops/actions/runs/41761540008).
+- Prometheus com os dois targets UP e Grafana com dados reais após os deploys.
 
-Siga [monitoring/inventory/README.md](../monitoring/inventory/README.md).
-A configuração é adicional ao Compose do monorepo e não modifica outros serviços.
-O dashboard usa environment para separar DEV/HOMOL e exibe disponibilidade da
-coleta, RPS, latência p95, erros 5xx, memória JVM, CPU e conexões por banco.
-A saúde de negócio e a convergência CQRS continuam exigindo testes de fluxo;
-o painel `up` indica sucesso da coleta, não disponibilidade completa do domínio.
-Alertas estão em `alerts.yml`; entrega de notificações exige Alertmanager ou
-regras de notificação no Grafana, ainda não configurados.
+Em 04/11/2026, a [alteração de README na feature](https://github.com/guilhermeschr/trabalho-devops/actions/runs/41822636424)
+aprovou quality e image; deploy foi corretamente pulado.
+Essas execuções usavam a organização Sonar anterior e não comprovam a migração.
 
-## Evidências a entregar
+Em 08/11/2026, Delivery Inventory foi criado no monorepo da organização
+`guilhermeschr`. Antes de encerrar a migração, conferir análise inicial de main,
+análise de develop e Quality Gate no novo projeto, sem ignorar o gate.
+Atualize as evidências somente após verificar os resultados remotos.
 
-| Evidência | Valor a registrar após validação |
-|---|---|
-| Repositório | https://github.com/guilhermeschr/trabalho-devops |
-| Workflow e Quality Gate | URL da execução e análise por ambiente |
-| DEV público | https://inventory-dev.onrender.com |
-| HOMOL público | https://inventory-homol.onrender.com |
-| Imagens | Digest do Spring de cada deploy |
-| Prometheus | Targets dos dois ambientes UP |
-| Grafana | Dashboard demonstrável e captura com dados reais; URL se houver hospedagem remota |
-| Git Flow / SemVer | PRs feature → develop → main, versão e commit entregues |
+Para a apresentação, confira novamente os serviços Render e ligue o
+monitoramento local. Mostre commit/branch, jobs do Actions, análise Sonar,
+imagem/digest, deploy Render e os gráficos. Não exponha valores de secrets.
 
-Não coloque tokens, senhas ou links de deploy com chaves nas evidências.
+Dependabot está em `.github/dependabot.yml`, incluindo Maven e Docker do Inventory.
+A segurança das rotas é validada pelo CD: 401 sem JWT/métricas e 403 sem token
+interno; Swagger deve ser 200 em DEV e 404 em HOMOL. O POST de teste não movimenta estoque.
