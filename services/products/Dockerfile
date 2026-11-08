@@ -1,4 +1,4 @@
-FROM node:24-alpine AS build
+FROM node:25-alpine AS build
 
 WORKDIR /app
 
@@ -16,7 +16,7 @@ ARG BUILD_COMMIT
 ENV BUILD_VERSION=$BUILD_VERSION BUILD_COMMIT=$BUILD_COMMIT
 RUN npm run build:products
 
-FROM node:24-alpine AS runtime
+FROM node:25-alpine AS runtime
 
 WORKDIR /app
 ENV NODE_ENV=production
