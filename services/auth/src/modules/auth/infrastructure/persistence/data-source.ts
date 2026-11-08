@@ -1,4 +1,5 @@
 import { DataSource } from 'typeorm';
+import { databaseTls } from '../../../../operations/runtime-config';
 import { UserOrmEntity } from './entities/user.orm-entity';
 import { CreateUsersTable1720000000000 } from './migrations/1720000000000-create-users-table';
 
@@ -12,4 +13,5 @@ export default new DataSource({
   entities: [UserOrmEntity],
   migrations: [CreateUsersTable1720000000000],
   synchronize: false,
+  ssl: databaseTls(process.env.AUTH_DB_SSL),
 });

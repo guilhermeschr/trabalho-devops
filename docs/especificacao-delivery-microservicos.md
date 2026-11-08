@@ -1,7 +1,7 @@
 # Especificação do Sistema de Delivery com Microsserviços
 
 **Status:** especificação de referência para implementação
-**Versão:** 2.23
+**Versão:** 2.24
 **Última atualização:** 2026-11-08
 **Idioma:** português
 **Objetivo:** orientar a construção, execução e validação de um sistema simples de delivery com foco em DevOps.
@@ -10,6 +10,7 @@
 
 | Versão | Data | Alteração |
 |---|---|---|
+| 2.24 | 2026-11-08 | Auth T2: rota pública de versão, `/metrics` com token próprio, PORT, validação cloud, TLS PostgreSQL opcional, Swagger desligado em HOMOL, workflow próprio com SonarCloud, release SemVer no Docker Hub e CD Render por digest; monitoramento local próprio (seção 22) |
 | 2.23 | 2026-11-08 | Inventory: padronizado nome Delivery Inventory, criado projeto Sonar no monorepo da organização guilhermeschr e consolidada documentação do CI/CD no repositório original |
 | 2.22 | 2026-11-03 | Inventory: alinhado CI/CD de develop/DEV ao original, preservando versão, documentação, monitoramento e configuração dos demais serviços |
 | 2.21 | 2026-11-03 | Inventory: consolidadas migração Docker Hub, negociação HTML/JSON do deploy e validação de PRs sem credenciais; preservadas integralmente as seções e o histórico dos demais serviços do original |
@@ -1721,3 +1722,95 @@ existirem estes arquivos. Critérios históricos da seção 14 não comprovam T2
 - [x] Swagger 200 UI/JSON em DEV e 404 em HOMOL.
 - [x] Prometheus com os dois targets UP e Grafana com tráfego real.
 - [ ] HOMOL na release estável e DEV na próxima versão PATCH.
+
+
+## 22. T2 de Auth — versão 0.2.0
+
+Auth segue o mesmo modelo operacional de Produtos (seção 21), com workflow,
+imagem, serviços Render e monitoramento próprios. Os contratos de negócio
+(seções 3.1, 3.2 e 18) não mudam.
+
+### 22.1 Contratos operacionais
+
+`GET /api/v1/auth/version`: HTTP 200 sem JWT, no gateway e no Render:
+
+~~~json
+{"service":"auth-service","version":"0.2.0","commit":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","environment":"homol"}
+~~~
+
+`version` e `commit` vêm de `dist/build-info.json`, gerado no build por
+`scripts/service-build-info.mjs auth` a partir de `BUILD_VERSION` e
+`BUILD_COMMIT` (local: versão do manifesto e commit `local`). Fora do ambiente
+local o arquivo é obrigatório. `environment` vem de `APP_ENV`
+(local/dev/homol). A rota não acessa o banco.
+
+`GET /metrics`: HTTP 200 `text/plain` no formato Prometheus com
+`Authorization: Bearer <METRICS_TOKEN>`; 401 quando ausente ou incorreto.
+Token vazio desabilita o acesso. Documentada no OpenAPI com o esquema
+`metrics`. O Nginx local não encaminha métricas. Registro com prom-client
+15.1.3: `http_requests_total`, `http_request_duration_seconds`, métricas do
+processo Node e `auth_build_info{version,commit}`. Labels: `service`,
+`environment`, `method`, `route` e `status`; rotas conhecidas usam o padrão e
+as demais `unmatched`, sem IDs, e-mails ou query strings. A própria coleta não
+é contabilizada.
+
+Porta: `PORT` → `AUTH_PORT` → 3000, inteiro de 1 a 65535. Em DEV e HOMOL,
+`JWT_SECRET`, `METRICS_TOKEN` e `AUTH_DB_{HOST,NAME,USER,PASSWORD}` são
+obrigatórios; segredos fictícios conhecidos (`change-me*`, `auth`, `postgres`)
+são rejeitados, e `METRICS_TOKEN` deve ser diferente de `JWT_SECRET`.
+`AUTH_DB_SSL=true` habilita TLS PostgreSQL com validação de certificado na
+aplicação e no CLI de migrações; o padrão local é `false`.
+
+| Ambiente | APP_ENV | NODE_ENV | SWAGGER_ENABLED |
+|---|---|---|---|
+| DEV | `dev` | `development` | `true` |
+| HOMOL | `homol` | `production` | `false` |
+
+Em HOMOL, combinação diferente impede a inicialização, e o Swagger também é
+desligado quando `APP_ENV=homol`.
+
+### 22.2 Releases e CI/CD
+
+Workflow independente `.github/workflows/auth.yml`, acionado por alterações em
+`services/auth/**`, manifestos raiz, scripts e monitoramento de Auth:
+
+1. `quality`: typecheck, testes Jest com limiar de 50% nas quatro métricas,
+   build, testes Python dos scripts, contrato Swagger HTTP contra o serviço
+   real com PostgreSQL de serviço do Actions, `promtool` do monitoramento,
+   SonarCloud com LCOV e Quality Gate obrigatório e build da imagem sem
+   publicação. Forks e Dependabot não recebem secrets do Sonar.
+2. `image` (push em `develop` ou `main`): `scripts/nest-service-release.py`
+   calcula `X.Y.Z-dev.<run_number>` em develop e `X.Y.Z` em main a partir de
+   `services/auth/package.json`; imagem `docker.io/<AUTH_DOCKERHUB_USERNAME>/auth-service`
+   (linux/amd64, labels OCI de versão e revisão, sem `latest`); tag Git
+   `auth-v<versão>` e GitHub Release (prerelease em develop). Imagem existente
+   só é reutilizada quando a revisão coincide; outro commit com a mesma versão
+   bloqueia a publicação.
+3. `deploy` (`AUTH_DEPLOY_ENABLED=true`, Environment `DEV` em develop e `HOMOL`
+   em main): `scripts/deploy-nest-service.py` chama a API Render com
+   `imageUrl@sha256:<digest>`, aguarda o deploy específico ficar `live` e
+   valida `/health`, identidade exata da versão, 401 em `/metrics`, 400 em
+   login sem corpo válido e Swagger UI/JSON 200 em DEV e 404 em HOMOL.
+
+### 22.3 Topologia, configuração e evidências
+
+Serviços Render `auth-dev` e `auth-homol` criados por **Existing Image**, sem
+repositório Git conectado e sem auto-deploy; o GitHub Actions é o único
+caminho de atualização. Cada ambiente usa banco PostgreSQL lógico próprio,
+com TLS. `JWT_SECRET` deve ser igual ao dos serviços que validam o token no
+mesmo ambiente (Produtos, Estoque e Pedidos). Compose local mantém o gateway
+e aceita `AUTH_METRICS_TOKEN` e `AUTH_DB_SSL` opcionais.
+
+Monitoramento local em `monitoring/auth` (Prometheus 9092 e Grafana 3003),
+com scrape HTTPS autenticado das origens DEV e HOMOL, alertas de coleta e de
+erros 5xx e dashboard com disponibilidade, tráfego, latência p95, 5xx,
+memória, CPU, versão e cadastros/logins por status.
+
+Secrets, Variables, preparação e evidências: `docs/auth-devops.md`.
+
+- [ ] SonarCloud Auth, análises main/develop e Quality Gate reais.
+- [ ] Docker Hub com imagem por release e digest registrado.
+- [ ] CD automático DEV/HOMOL com identidade correta.
+- [ ] Banco isolado por ambiente.
+- [ ] Swagger 200 UI/JSON em DEV e 404 em HOMOL.
+- [ ] Prometheus com os dois targets UP e Grafana com tráfego real.
