@@ -131,10 +131,14 @@ describe('LoginUseCase', () => {
     await expect(
       useCase.execute({ email: 'ninguem@example.com', password: 'qualquer1' }),
     ).rejects.toBeInstanceOf(InvalidCredentialsError);
-    expect(hasher.compare).toHaveBeenCalledWith(
-      'qualquer1',
-      expect.stringMatching(/^\$2[ab]\$10\$/u),
-    );
+    await expect(
+      useCase.execute({ email: 'outro@example.com', password: 'qualquer2' }),
+    ).rejects.toBeInstanceOf(InvalidCredentialsError);
+    expect(hasher.compare).toHaveBeenCalledWith('qualquer1', '$2b$10$hash');
+    expect(hasher.compare).toHaveBeenCalledWith('qualquer2', '$2b$10$hash');
+    // O hash fictício é gerado uma única vez, com senha aleatória.
+    expect(hasher.hash).toHaveBeenCalledTimes(1);
+    expect(hasher.hash.mock.calls[0]?.[0]).toMatch(/^[0-9a-f-]{36}$/u);
     expect(issuer.issue).not.toHaveBeenCalled();
   });
 });

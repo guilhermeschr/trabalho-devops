@@ -1755,6 +1755,9 @@ processo Node e `auth_build_info{version,commit}`. Labels: `service`,
 as demais `unmatched`, sem IDs, e-mails ou query strings. A própria coleta não
 é contabilizada.
 
+O hash usado no login de e-mail inexistente (seção 18) é gerado na primeira
+utilização a partir de uma senha aleatória; não há hash fixo no código.
+
 Porta: `PORT` → `AUTH_PORT` → 3000, inteiro de 1 a 65535. Em DEV e HOMOL,
 `JWT_SECRET`, `METRICS_TOKEN` e `AUTH_DB_{HOST,NAME,USER,PASSWORD}` são
 obrigatórios; segredos fictícios conhecidos (`change-me*`, `auth`, `postgres`)
