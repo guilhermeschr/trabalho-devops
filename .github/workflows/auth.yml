@@ -1,0 +1,189 @@
+name: Auth
+on:
+  push:
+    branches: [main, develop, 'feature/**']
+    paths: ['services/auth/**', 'package.json', 'package-lock.json', 'tsconfig.base.json', '.github/workflows/auth.yml', 'scripts/service-build-info.mjs', 'scripts/verify-auth-swagger.mjs', 'scripts/*nest*', 'monitoring/auth/**']
+  pull_request:
+    branches: [main, develop]
+    paths: ['services/auth/**', 'package.json', 'package-lock.json', 'tsconfig.base.json', '.github/workflows/auth.yml', 'scripts/service-build-info.mjs', 'scripts/verify-auth-swagger.mjs', 'scripts/*nest*', 'monitoring/auth/**']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: auth-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: auth_ci
+          POSTGRES_USER: auth_ci
+          POSTGRES_PASSWORD: ci-database-fixture
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U auth_ci -d auth_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm --workspace services/auth run typecheck
+      - run: npm run test:auth
+      - run: npm run build:auth
+      - run: python3 -m unittest discover -s scripts -p 'test_*nest*.py'
+      - name: Contrato Swagger HTTP com o serviço real
+        env:
+          PORT: '3100'
+          NODE_ENV: development
+          SWAGGER_ENABLED: 'true'
+          JWT_SECRET: ci-jwt-fixture
+          AUTH_DB_HOST: localhost
+          AUTH_DB_NAME: auth_ci
+          AUTH_DB_USER: auth_ci
+          AUTH_DB_PASSWORD: ci-database-fixture
+        run: |
+          node services/auth/dist/main.js > /tmp/auth-contract.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for _attempt in $(seq 1 30); do
+            if curl -fsS http://localhost:3100/health > /dev/null; then break; fi
+            sleep 1
+          done
+          SWAGGER_BASE_URL=http://localhost:3100 npm run verify:swagger:auth || { cat /tmp/auth-contract.log; exit 1; }
+      - name: Validar monitoramento
+        run: |
+          mkdir -p monitoring/auth/.secrets
+          printf 'ci-fixture' > monitoring/auth/.secrets/dev_metrics_token
+          printf 'ci-fixture' > monitoring/auth/.secrets/homol_metrics_token
+          AUTH_DEV_URL=https://dev.example AUTH_HOMOL_URL=https://homol.example python3 monitoring/auth/configure.py
+          docker run --rm --entrypoint promtool -v "$PWD/monitoring/auth:/etc/prometheus:ro" -v "$PWD/monitoring/auth/.secrets:/run/secrets:ro" prom/prometheus:v3.5.0 check config /etc/prometheus/prometheus.yml
+      - name: SonarQube Cloud e Quality Gate
+        if: github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')
+        uses: SonarSource/sonarqube-scan-action@v7
+        env:
+          SONAR_TOKEN: ${{ secrets.AUTH_SONAR_TOKEN }}
+        with:
+          projectBaseDir: services/auth
+          args: >-
+            -Dsonar.host.url=https://sonarcloud.io
+            -Dsonar.organization=${{ vars.AUTH_SONAR_ORGANIZATION }}
+            -Dsonar.projectKey=${{ vars.AUTH_SONAR_PROJECT_KEY }}
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.qualitygate.timeout=600
+      - name: Validar imagem sem publicar
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: services/auth/Dockerfile
+          push: false
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: auth-coverage
+          path: services/auth/coverage/
+  image:
+    needs: quality
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: write
+    outputs:
+      image: ${{ steps.names.outputs.image }}
+      version: ${{ steps.names.outputs.version }}
+      digest: ${{ steps.result.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Identificar release e verificar imagem existente
+        id: names
+        env:
+          SERVICE: auth
+          DOCKERHUB_USERNAME: ${{ vars.AUTH_DOCKERHUB_USERNAME }}
+          BRANCH: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: python3 scripts/nest-service-release.py
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        if: steps.names.outputs.digest == ''
+        with:
+          username: ${{ vars.AUTH_DOCKERHUB_USERNAME }}
+          password: ${{ secrets.AUTH_DOCKERHUB_TOKEN }}
+      - name: Publicar imagem aprovada
+        id: build
+        if: steps.names.outputs.digest == ''
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: services/auth/Dockerfile
+          platforms: linux/amd64
+          provenance: false
+          push: true
+          tags: |
+            ${{ steps.names.outputs.image }}:${{ steps.names.outputs.version }}
+            ${{ steps.names.outputs.image }}:sha-${{ github.sha }}-${{ steps.names.outputs.version }}
+          build-args: |
+            BUILD_VERSION=${{ steps.names.outputs.version }}
+            BUILD_COMMIT=${{ github.sha }}
+          cache-from: type=gha,scope=auth
+          cache-to: type=gha,mode=max,scope=auth
+      - name: Registrar digest
+        id: result
+        env:
+          EXISTING: ${{ steps.names.outputs.digest }}
+          CREATED: ${{ steps.build.outputs.digest }}
+        run: echo "digest=${EXISTING:-$CREATED}" >> "$GITHUB_OUTPUT"
+      - name: Criar tag e release idempotentes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.names.outputs.tag }}
+          RELEASE_VERSION: ${{ steps.names.outputs.version }}
+          IMAGE: ${{ steps.names.outputs.image }}
+          DIGEST: ${{ steps.result.outputs.digest }}
+          BRANCH: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG" > /tmp/auth-tag; then
+            existing_commit=$(cut -f1 /tmp/auth-tag)
+            if [ "$existing_commit" != "$GITHUB_SHA" ]; then
+              echo 'Tag existente aponta para outro commit'; exit 1
+            fi
+          else
+            git tag "$RELEASE_TAG" "$GITHUB_SHA"
+            git push origin "refs/tags/$RELEASE_TAG"
+          fi
+          if ! gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
+            printf 'Imagem: %s@%s\nCommit: %s\nPipeline: %s/%s/actions/runs/%s\n' "$IMAGE" "$DIGEST" "$GITHUB_SHA" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" > /tmp/auth-release.md
+            flags=()
+            if [ "$BRANCH" = develop ]; then flags+=(--prerelease); fi
+            gh release create "$RELEASE_TAG" --verify-tag --title "Auth $RELEASE_VERSION" --notes-file /tmp/auth-release.md "${flags[@]}"
+          fi
+  deploy:
+    needs: image
+    if: vars.AUTH_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    environment: ${{ github.ref == 'refs/heads/main' && 'HOMOL' || 'DEV' }}
+    env:
+      SERVICE: auth
+      RENDER_API_KEY: ${{ secrets.AUTH_RENDER_API_KEY }}
+      RENDER_SERVICE_ID: ${{ vars.AUTH_RENDER_SERVICE_ID }}
+      APP_URL: ${{ vars.AUTH_APP_URL }}
+      APP_ENV: ${{ github.ref == 'refs/heads/main' && 'homol' || 'dev' }}
+      IMAGE: ${{ needs.image.outputs.image }}@${{ needs.image.outputs.digest }}
+      EXPECTED_VERSION: ${{ needs.image.outputs.version }}
+      EXPECTED_COMMIT: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 scripts/deploy-nest-service.py

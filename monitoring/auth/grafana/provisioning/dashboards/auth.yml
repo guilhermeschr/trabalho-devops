@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: Auth
+    folder: Auth
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards

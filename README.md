@@ -5,6 +5,7 @@ Sistema de delivery com microsserviços. Auth, Produtos, Estoque e Pedidos estã
 ## Documentação
 
 - [T2 — DevOps do Estoque](docs/inventory-devops.md): CI/CD, cloud, secrets, Git Flow e entrega.
+- [T2 — DevOps de Auth](docs/auth-devops.md): workflow, release, Render, secrets e monitoramento.
 - [Arquitetura](docs/arquitetura.md): visão geral resumida do sistema (serviços,
   bancos, autenticação, CQRS, logs e storage).
 - [Roteiro de apresentação](docs/roteiro-apresentacao.md): passo a passo de
