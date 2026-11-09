@@ -14,7 +14,7 @@ usuário admin. Dashboard Pedidos / Pedidos — DEV e HOMOL.
 Gere tráfego DEV autenticado e aguarde duas coletas. `up` é sucesso da coleta,
 não saúde integral dos bancos/CQRS. Esta configuração permanece ativa apenas
 enquanto seu computador e os containers estiverem ligados. Não expõe portas
-na internet e não hospeda Grafana no Render. As portas diferem de Produtos (9091/3002), Inventory (9090/3001) e Auth (9092/3003).
+na internet e não hospeda Grafana no Render. As portas diferem de Produtos (9091/3002), Inventory (9090/3001) e Auth (9094/3003).
 
 Valide com `promtool check config /etc/prometheus/prometheus.yml` na imagem
 prom/prometheus:v3.5.0 montando a pasta em /etc/prometheus e .secrets em

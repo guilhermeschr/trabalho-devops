@@ -1,8 +1,8 @@
 # Especificação do Sistema de Delivery com Microsserviços
 
 **Status:** especificação de referência para implementação
-**Versão:** 2.25
-**Última atualização:** 2026-11-08
+**Versão:** 2.26
+**Última atualização:** 2026-11-09
 **Idioma:** português
 **Objetivo:** orientar a construção, execução e validação de um sistema simples de delivery com foco em DevOps.
 
@@ -10,6 +10,7 @@
 
 | Versão | Data | Alteração |
 |---|---|---|
+| 2.26 | 2026-11-09 | Auth e Pedidos: checklists das seções 22 e 23 atualizados com SonarCloud, Docker Hub, bancos isolados, Swagger por ambiente, fluxo cloud e Prometheus/Grafana com os dois alvos UP validados; Prometheus de Auth movido para a porta local 9094 (9092 é a porta padrão do Kafka); evidências em `docs/auth-devops.md` e `docs/orders-devops.md` |
 | 2.25 | 2026-11-08 | Pedidos T2: rota pública de versão, `/metrics` com token próprio, PORT, validação cloud com origens HTTPS de Produtos e Estoque, TLS PostgreSQL opcional, Swagger desligado em HOMOL, workflow próprio, release SemVer e CD Render por digest; monitoramento local próprio (seção 23) |
 | 2.24 | 2026-11-08 | Auth T2: rota pública de versão, `/metrics` com token próprio, PORT, validação cloud, TLS PostgreSQL opcional, Swagger desligado em HOMOL, workflow próprio com SonarCloud, release SemVer no Docker Hub e CD Render por digest; monitoramento local próprio (seção 22) |
 | 2.23 | 2026-11-08 | Inventory: padronizado nome Delivery Inventory, criado projeto Sonar no monorepo da organização guilhermeschr e consolidada documentação do CI/CD no repositório original |
@@ -1805,19 +1806,19 @@ com TLS. `JWT_SECRET` deve ser igual ao dos serviços que validam o token no
 mesmo ambiente (Produtos, Estoque e Pedidos). Compose local mantém o gateway
 e aceita `AUTH_METRICS_TOKEN` e `AUTH_DB_SSL` opcionais.
 
-Monitoramento local em `monitoring/auth` (Prometheus 9092 e Grafana 3003),
+Monitoramento local em `monitoring/auth` (Prometheus 9094 e Grafana 3003),
 com scrape HTTPS autenticado das origens DEV e HOMOL, alertas de coleta e de
 erros 5xx e dashboard com disponibilidade, tráfego, latência p95, 5xx,
 memória, CPU, versão e cadastros/logins por status.
 
 Secrets, Variables, preparação e evidências: `docs/auth-devops.md`.
 
-- [ ] SonarCloud Auth, análises main/develop e Quality Gate reais.
-- [ ] Docker Hub com imagem por release e digest registrado.
+- [x] SonarCloud Auth, análises main/develop e Quality Gate reais.
+- [x] Docker Hub com imagem por release e digest registrado.
 - [ ] CD automático DEV/HOMOL com identidade correta.
-- [ ] Banco isolado por ambiente.
-- [ ] Swagger 200 UI/JSON em DEV e 404 em HOMOL.
-- [ ] Prometheus com os dois targets UP e Grafana com tráfego real.
+- [x] Banco isolado por ambiente.
+- [x] Swagger 200 UI/JSON em DEV e 404 em HOMOL.
+- [x] Prometheus com os dois targets UP e Grafana com tráfego real.
 
 
 ## 23. T2 de Pedidos — versão 0.2.0
@@ -1887,10 +1888,10 @@ por rota e status.
 
 Secrets, Variables, preparação e evidências: `docs/orders-devops.md`.
 
-- [ ] SonarCloud Pedidos, análises main/develop e Quality Gate reais.
-- [ ] Docker Hub com imagem por release e digest registrado.
+- [x] SonarCloud Pedidos, análises main/develop e Quality Gate reais.
+- [x] Docker Hub com imagem por release e digest registrado.
 - [ ] CD automático DEV/HOMOL com identidade correta.
-- [ ] Banco isolado por ambiente.
-- [ ] Fluxo de pedido validado com Produtos e Estoque cloud em DEV e HOMOL.
-- [ ] Swagger 200 UI/JSON em DEV e 404 em HOMOL.
-- [ ] Prometheus com os dois targets UP e Grafana com tráfego real.
+- [x] Banco isolado por ambiente.
+- [x] Fluxo de pedido validado com Produtos e Estoque cloud em DEV e HOMOL.
+- [x] Swagger 200 UI/JSON em DEV e 404 em HOMOL.
+- [x] Prometheus com os dois targets UP e Grafana com tráfego real.

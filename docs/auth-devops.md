@@ -79,7 +79,7 @@ fictícios (`change-me*`, `auth`, `postgres`) impedem o startup em DEV/HOMOL.
 ## Monitoramento
 
 Ver [monitoring/auth/README.md](../monitoring/auth/README.md): Prometheus em
-http://localhost:9092 e Grafana em http://localhost:3003.
+http://localhost:9094 e Grafana em http://localhost:3003.
 
 ## Verificação local
 
@@ -95,14 +95,40 @@ npm run verify:swagger:auth
 
 | Item | Link/valor |
 |---|---|
-| URL DEV | a preencher |
-| URL HOMOL | a preencher |
+| URL DEV | https://auth-dev-j1ar.onrender.com (`srv-dboso7ijnfac73fu86bg`) |
+| URL HOMOL | https://auth-homol.onrender.com (`srv-dbosupc9v7es738a5ncg`) |
 | Projeto Sonar | https://sonarcloud.io/dashboard?id=guilhermeschr_auth |
-| Primeira release DEV | a preencher |
-| Primeira release HOMOL | a preencher |
+| Primeira release DEV | [auth-v0.2.0-dev.7](https://github.com/guilhermeschr/trabalho-devops/releases/tag/auth-v0.2.0-dev.7), digest `sha256:44ff3c1af4a06a504c77c4aba20dd48bbab3de14805a87d523707ba873ea2bf7` |
+| Primeiro CD DEV | [run 42622882644](https://github.com/guilhermeschr/trabalho-devops/actions/runs/42622882644), deploy `dep-dbot4ue417fc739b3bsg` live e validado |
+| Primeira release HOMOL | pendente (promoção `develop` → `main`) |
 
-- [ ] Quality Gate aprovado em `develop` e `main`.
-- [ ] Imagem DEV publicada e implantada automaticamente.
+Provisionamento em 09/11/2026:
+
+- Serviços criados por Existing Image com o digest acima, plano Free, região
+  Virginia, health check `/health`; `autoDeploy=no` ajustado pela API.
+- Bancos `auth_dev`/`auth_homol` com usuários próprios na instância PostgreSQL
+  compartilhada do grupo (expira em 30/11/2026), `REVOKE CONNECT ... FROM
+  PUBLIC` e TLS com validação de certificado verificado.
+- A primeira análise Sonar de uma branch longa (`main` ou `develop`) retorna
+  `NONE` e reprova o passo; a reexecução calcula o Quality Gate.
+- Verificação manual: `/health` 200, versão com ambiente correto, `/metrics`
+  401 sem token, Swagger 200 em DEV e 404 em HOMOL.
+- Fluxo ponta a ponta direto nos serviços Render, em DEV e em HOMOL: cadastro
+  e login no Auth, produto e estoque com o JWT emitido, pedido criado (Pedidos
+  chama Produtos e Estoque com `X-Internal-Token`), consulta, conclusão
+  idempotente e débito refletido na projeção de estoque (20 → 18).
+
+- [x] Quality Gate aprovado em `develop` e `main`.
+- [x] Imagem DEV publicada e implantada automaticamente.
 - [ ] Imagem HOMOL publicada e implantada automaticamente.
-- [ ] Swagger 200 em DEV e 404 em HOMOL.
-- [ ] Prometheus com os dois targets UP e dashboard com tráfego real.
+- [x] Swagger 200 em DEV e 404 em HOMOL.
+- [x] Prometheus com os dois targets UP e dashboard com tráfego real.
+
+Monitoramento em 09/11/2026: Prometheus local (http://localhost:9094) com
+`auth-dev` e `auth-homol` UP via HTTPS e Bearer `METRICS_TOKEN`; Grafana
+(http://localhost:3003/d/auth-delivery) com o dashboard provisionado e o datasource
+consultando os dois alvos. Tráfego gerado pelo fluxo cloud (3 execuções por
+ambiente) e por requisições inválidas (4xx); as séries de requisições por
+rota/status, latência p95 e `auth_build_info` (`0.2.0-dev.7`) aparecem nos dois
+ambientes. A coleta mantém os serviços Free acordados e consome as horas do
+workspace Render: suba o monitoramento só para evidências e apresentação.
