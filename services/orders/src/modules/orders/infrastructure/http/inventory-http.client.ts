@@ -20,7 +20,6 @@ export class InventoryHttpClient implements InventoryClient {
     const url = `${baseUrl(
       this.configService,
       'INVENTORY_SERVICE_URL',
-      'http://inventory-service:3000',
     )}/internal/v1/inventory/debit`;
     const response = await callInternal(
       this.configService,

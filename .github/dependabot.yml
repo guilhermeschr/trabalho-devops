@@ -27,3 +27,13 @@ updates:
     target-branch: develop
     schedule:
       interval: weekly
+  - package-ecosystem: docker
+    directory: /services/auth
+    target-branch: develop
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: /services/orders
+    target-branch: develop
+    schedule:
+      interval: weekly

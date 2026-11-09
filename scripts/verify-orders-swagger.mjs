@@ -8,16 +8,19 @@ const doc = await json.json();
 assert.equal(doc.info?.title, 'Delivery - Microsserviço de Pedidos');
 assert.deepEqual(Object.keys(doc.paths).sort(), [
   '/api/v1/orders',
+  '/api/v1/orders/version',
   '/api/v1/orders/{id}',
   '/api/v1/orders/{id}/complete',
   '/health',
-]);
+  '/metrics',
+].sort());
 assert.equal(doc.components?.securitySchemes?.jwt?.scheme, 'bearer');
 for (const [path, method, tag, statuses, body, secured] of [
   ['/api/v1/orders', 'post', 'Pedidos', [201, 400, 401, 404, 409, 500, 503], 'CreateOrderDto', true],
   ['/api/v1/orders/{id}', 'get', 'Pedidos', [200, 400, 401, 403, 404, 500], undefined, true],
   ['/api/v1/orders/{id}/complete', 'post', 'Pedidos', [200, 400, 401, 403, 404, 409, 500], undefined, true],
   ['/health', 'get', 'Infraestrutura', [200], undefined, false],
+  ['/api/v1/orders/version', 'get', 'Infraestrutura', [200], undefined, false],
 ]) {
   const op = doc.paths[path]?.[method];
   assert.ok(op, `Operação ausente: ${method.toUpperCase()} ${path}`);
@@ -45,11 +48,22 @@ for (const [path, method, tag, statuses, body, secured] of [
 const complete = doc.paths['/api/v1/orders/{id}/complete'].post;
 assert.ok(!complete.responses['201'], 'Conclusão deve responder 200');
 assert.ok(!complete.requestBody, 'Conclusão não possui corpo');
+const metrics = doc.paths['/metrics']?.get;
+assert.ok(metrics, 'Operação ausente: GET /metrics');
+assert.ok(metrics.tags?.includes('Infraestrutura'), 'Tag Infraestrutura ausente em /metrics');
+assert.ok(
+  metrics.security?.some((item) => 'metrics' in item),
+  'Métricas devem exigir token',
+);
+for (const status of [200, 401])
+  assert.ok(metrics.responses[status], `Resposta ${status} ausente em /metrics`);
+assert.equal(doc.components.securitySchemes?.metrics?.scheme, 'bearer');
 for (const schema of [
   'CreateOrderDto',
   'OrderResponseDto',
   'ErrorResponseDto',
   'HealthResponseDto',
+  'VersionResponseDto',
 ])
   assert.ok(doc.components.schemas[schema], `Schema ${schema} ausente`);
 assert.ok(

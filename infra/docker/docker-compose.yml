@@ -7,6 +7,8 @@ services:
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       AUTH_PORT: 3000
+      METRICS_TOKEN: ${AUTH_METRICS_TOKEN:-}
+      AUTH_DB_SSL: ${AUTH_DB_SSL:-false}
       SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
       JWT_SECRET: ${JWT_SECRET:-change-me-in-development}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-3600}
@@ -208,6 +210,8 @@ services:
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       ORDERS_PORT: 3000
+      METRICS_TOKEN: ${ORDERS_METRICS_TOKEN:-}
+      ORDERS_DB_SSL: ${ORDERS_DB_SSL:-false}
       SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
       JWT_SECRET: ${JWT_SECRET:-change-me-in-development}
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-change-me-internal-development}

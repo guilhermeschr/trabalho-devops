@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import {
   InvalidCredentialsError,
   normalizeEmail,
@@ -27,16 +28,15 @@ export type LoginResult = {
   user: User;
 };
 
-/**
- * Hash bcrypt de uma senha descartável. Quando o e-mail não existe, a senha
- * é comparada com ele para que o tempo de resposta não revele quais e-mails
- * estão cadastrados.
- */
-const UNKNOWN_USER_HASH =
-  '$2b$10$jxr3pvrSHftA27XA7u3DzuKzmtRptizukpQk2ePenRrBjdA34B3cC';
-
 @Injectable()
 export class LoginUseCase {
+  /**
+   * Hash de uma senha aleatória, gerado uma vez por processo. Quando o e-mail
+   * não existe, a senha é comparada com ele para que o tempo de resposta não
+   * revele quais e-mails estão cadastrados. Não há hash fixo no código.
+   */
+  private unknownUserHash?: Promise<string>;
+
   constructor(
     @Inject(USER_REPOSITORY)
     private readonly userRepository: UserRepository,
@@ -52,7 +52,7 @@ export class LoginUseCase {
     );
     const matches = await this.passwordHasher.compare(
       input.password,
-      user?.passwordHash ?? UNKNOWN_USER_HASH,
+      user?.passwordHash ?? (await this.getUnknownUserHash()),
     );
 
     if (!user || !matches) {
@@ -70,5 +70,10 @@ export class LoginUseCase {
       expiresIn: token.expiresIn,
       user,
     };
+  }
+
+  private getUnknownUserHash(): Promise<string> {
+    this.unknownUserHash ??= this.passwordHasher.hash(randomUUID());
+    return this.unknownUserHash;
   }
 }

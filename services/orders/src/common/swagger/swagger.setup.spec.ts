@@ -22,6 +22,16 @@ describe('configuração do Swagger', () => {
     expect(isSwaggerEnabled(config)).toBe(expected);
   });
 
+  it('desabilita o Swagger em HOMOL mesmo com a flag ligada', () => {
+    const config = new ConfigService({
+      NODE_ENV: 'development',
+      SWAGGER_ENABLED: 'true',
+      APP_ENV: 'homol',
+    });
+
+    expect(isSwaggerEnabled(config)).toBe(false);
+  });
+
   it('não registra rotas quando desabilitado', () => {
     const setup = jest.spyOn(SwaggerModule, 'setup');
 

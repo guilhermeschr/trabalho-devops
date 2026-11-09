@@ -9,12 +9,15 @@ assert.equal(doc.info?.title, 'Delivery - Microsserviço de Auth');
 assert.deepEqual(Object.keys(doc.paths).sort(), [
   '/api/v1/auth/login',
   '/api/v1/auth/register',
+  '/api/v1/auth/version',
   '/health',
+  '/metrics',
 ]);
 for (const [path, method, tag, statuses, body] of [
   ['/api/v1/auth/register', 'post', 'Autenticação', [201, 400, 409, 500], 'RegisterUserDto'],
   ['/api/v1/auth/login', 'post', 'Autenticação', [200, 400, 401, 500], 'LoginDto'],
   ['/health', 'get', 'Infraestrutura', [200]],
+  ['/api/v1/auth/version', 'get', 'Infraestrutura', [200]],
 ]) {
   const op = doc.paths[path]?.[method];
   assert.ok(op, `Operação ausente: ${method.toUpperCase()} ${path}`);
@@ -30,6 +33,16 @@ for (const [path, method, tag, statuses, body] of [
     );
 }
 assert.ok(!doc.paths['/api/v1/auth/login'].post.responses['201']);
+const metrics = doc.paths['/metrics']?.get;
+assert.ok(metrics, 'Operação ausente: GET /metrics');
+assert.ok(metrics.tags?.includes('Infraestrutura'), 'Tag Infraestrutura ausente em /metrics');
+assert.ok(
+  metrics.security?.some((security) => security.metrics),
+  'Métricas devem exigir token',
+);
+for (const status of [200, 401])
+  assert.ok(metrics.responses[status], `Resposta ${status} ausente em /metrics`);
+assert.ok(doc.components.securitySchemes?.metrics, 'Esquema metrics ausente');
 for (const schema of [
   'RegisterUserDto',
   'LoginDto',
@@ -37,6 +50,7 @@ for (const schema of [
   'LoginResponseDto',
   'ErrorResponseDto',
   'HealthResponseDto',
+  'VersionResponseDto',
 ])
   assert.ok(doc.components.schemas[schema], `Schema ${schema} ausente`);
 assert.ok(

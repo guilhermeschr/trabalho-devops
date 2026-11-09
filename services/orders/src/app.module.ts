@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { RequestIdMiddleware } from './common/request-id.middleware';
 import { HealthModule } from './health/health.module';
 import { OrdersModule } from './modules/orders/orders.module';
+import { OperationsModule } from './operations/operations.module';
 
 @Module({
   imports: [
@@ -11,6 +12,8 @@ import { OrdersModule } from './modules/orders/orders.module';
       cache: true,
     }),
     HealthModule,
+    // Antes de OrdersModule: /api/v1/orders/version deve preceder /api/v1/orders/:id.
+    OperationsModule,
     OrdersModule,
   ],
 })

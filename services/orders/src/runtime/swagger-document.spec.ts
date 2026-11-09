@@ -10,11 +10,14 @@ import { CreateOrderUseCase } from '../modules/orders/application/use-cases/crea
 import { GetOrderUseCase } from '../modules/orders/application/use-cases/get-order.use-case';
 import { JwtAuthGuard } from '../modules/orders/infrastructure/auth/jwt-auth.guard';
 import { OrdersController } from '../modules/orders/presentation/http/orders.controller';
+import { BuildInfoService } from '../operations/build-info.service';
+import { MetricsService } from '../operations/metrics.service';
+import { OperationsController } from '../operations/operations.controller';
 
 describe('contrato OpenAPI do serviço de Pedidos', () => {
-  it('documenta rotas protegidas, health, respostas e schemas', async () => {
+  it('documenta rotas protegidas, operacionais, respostas e schemas', async () => {
     const moduleRef = await Test.createTestingModule({
-      controllers: [OrdersController, HealthController],
+      controllers: [OperationsController, OrdersController, HealthController],
       providers: [
         JwtAuthGuard,
         { provide: JwtService, useValue: {} },
@@ -23,6 +26,8 @@ describe('contrato OpenAPI do serviço de Pedidos', () => {
         { provide: GetOrderUseCase, useValue: {} },
         { provide: CompleteOrderUseCase, useValue: {} },
         { provide: HealthService, useValue: {} },
+        { provide: BuildInfoService, useValue: {} },
+        { provide: MetricsService, useValue: {} },
       ],
     }).compile();
     const app = moduleRef.createNestApplication();
@@ -34,10 +39,12 @@ describe('contrato OpenAPI do serviço de Pedidos', () => {
 
     expect(Object.keys(document.paths).sort()).toEqual([
       '/api/v1/orders',
+      '/api/v1/orders/version',
       '/api/v1/orders/{id}',
       '/api/v1/orders/{id}/complete',
       '/health',
-    ]);
+      '/metrics',
+    ].sort());
     expect(document.components?.securitySchemes?.jwt).toEqual(
       expect.objectContaining({ type: 'http', scheme: 'bearer' }),
     );
@@ -62,12 +69,29 @@ describe('contrato OpenAPI do serviço de Pedidos', () => {
     ).toBeUndefined();
 
     expect(document.paths['/health']?.get?.tags).toEqual(['Infraestrutura']);
+
+    const version = document.paths['/api/v1/orders/version']?.get;
+    expect(version?.tags).toEqual(['Infraestrutura']);
+    expect(version?.security).toBeUndefined();
+    expect(version?.responses['200']).toBeDefined();
+
+    const metrics = document.paths['/metrics']?.get;
+    expect(metrics?.tags).toEqual(['Infraestrutura']);
+    expect(metrics?.security).toEqual([{ metrics: [] }]);
+    expect(metrics?.responses).toEqual(
+      expect.objectContaining({
+        '200': expect.any(Object),
+        '401': expect.any(Object),
+      }),
+    );
+    expect(document.components?.securitySchemes?.metrics).toBeDefined();
     expect(document.components?.schemas).toEqual(
       expect.objectContaining({
         CreateOrderDto: expect.any(Object),
         OrderResponseDto: expect.any(Object),
         ErrorResponseDto: expect.any(Object),
         HealthResponseDto: expect.any(Object),
+        VersionResponseDto: expect.any(Object),
       }),
     );
 

@@ -18,6 +18,7 @@ import {
 import { BcryptPasswordHasher } from './infrastructure/security/bcrypt-password-hasher';
 import { JwtTokenIssuer } from './infrastructure/security/jwt-token-issuer';
 import { AuthController } from './presentation/http/auth.controller';
+import { databaseTls } from '../../operations/runtime-config';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { AuthController } from './presentation/http/auth.controller';
         entities: [UserOrmEntity],
         migrations: [CreateUsersTable1720000000000],
         migrationsRun: true,
+        ssl: databaseTls(configService.get<string>('AUTH_DB_SSL')),
         synchronize: false,
       }),
     }),
