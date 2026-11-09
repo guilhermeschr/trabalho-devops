@@ -39,8 +39,15 @@ variáveis dos outros serviços.
 
 ## SonarCloud
 
-Projeto próprio "Delivery Auth" em organização no plano OSS (branches),
-análise automática desligada, `main` principal e `develop` como branch longa.
+Projeto `guilhermeschr_auth` ("Delivery Auth") na organização OSS
+`guilhermeschr`, vinculado ao repositório como monorepo. O plano OSS é
+necessário: no plano Free comum a análise de `develop` falha com
+"Organization is not allowed to access data from non main branches".
+Análise automática desligada, `main` principal e `develop` como branch longa
+(`(develop|main|(branch|release)-.*)`). A análise inicial da `main` foi feita
+em 09/11/2026 pelo scanner local, com Quality Gate aprovado na segunda
+execução (a primeira retorna `NONE`). O token é de um membro da organização,
+com permissão de executar análise.
 A configuração do scanner está em `services/auth/sonar-project.properties`
 (LCOV em `coverage/lcov.info`).
 
@@ -90,7 +97,7 @@ npm run verify:swagger:auth
 |---|---|
 | URL DEV | a preencher |
 | URL HOMOL | a preencher |
-| Projeto Sonar | a preencher |
+| Projeto Sonar | https://sonarcloud.io/dashboard?id=guilhermeschr_auth |
 | Primeira release DEV | a preencher |
 | Primeira release HOMOL | a preencher |
 

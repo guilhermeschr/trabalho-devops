@@ -40,9 +40,11 @@ serviços.
 
 ## SonarCloud
 
-O projeto é "Delivery Orders", em organização do plano OSS, com análise
-automática desligada, `main` como branch principal e `develop` como branch
-longa. A configuração fica em `services/orders/sonar-project.properties`.
+O projeto é `guilhermeschr_orders` ("Delivery Orders"), na organização OSS
+`guilhermeschr`, vinculado ao repositório como monorepo. A análise automática
+está desligada, `main` é a branch principal e `develop` é branch longa. A
+`main` foi inicializada em 09/11/2026, nas mesmas condições descritas em
+`docs/auth-devops.md`. A configuração fica em `services/orders/sonar-project.properties`.
 
 ## Docker Hub
 
@@ -101,7 +103,7 @@ npm run verify:flow
 |---|---|
 | URL DEV | a preencher |
 | URL HOMOL | a preencher |
-| Projeto Sonar | a preencher |
+| Projeto Sonar | https://sonarcloud.io/dashboard?id=guilhermeschr_orders |
 | Primeira release DEV | a preencher |
 | Primeira release HOMOL | a preencher |
 
