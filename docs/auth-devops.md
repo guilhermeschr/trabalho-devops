@@ -79,7 +79,7 @@ fictícios (`change-me*`, `auth`, `postgres`) impedem o startup em DEV/HOMOL.
 ## Monitoramento
 
 Ver [monitoring/auth/README.md](../monitoring/auth/README.md): Prometheus em
-http://localhost:9092 e Grafana em http://localhost:3003.
+http://localhost:9094 e Grafana em http://localhost:3003.
 
 ## Verificação local
 
@@ -122,4 +122,13 @@ Provisionamento em 09/11/2026:
 - [x] Imagem DEV publicada e implantada automaticamente.
 - [ ] Imagem HOMOL publicada e implantada automaticamente.
 - [x] Swagger 200 em DEV e 404 em HOMOL.
-- [ ] Prometheus com os dois targets UP e dashboard com tráfego real.
+- [x] Prometheus com os dois targets UP e dashboard com tráfego real.
+
+Monitoramento em 09/11/2026: Prometheus local (http://localhost:9094) com
+`auth-dev` e `auth-homol` UP via HTTPS e Bearer `METRICS_TOKEN`; Grafana
+(http://localhost:3003/d/auth-delivery) com o dashboard provisionado e o datasource
+consultando os dois alvos. Tráfego gerado pelo fluxo cloud (3 execuções por
+ambiente) e por requisições inválidas (4xx); as séries de requisições por
+rota/status, latência p95 e `auth_build_info` (`0.2.0-dev.7`) aparecem nos dois
+ambientes. A coleta mantém os serviços Free acordados e consome as horas do
+workspace Render: suba o monitoramento só para evidências e apresentação.

@@ -128,4 +128,13 @@ Provisionamento em 09/11/2026:
 - [x] Imagem DEV publicada e implantada automaticamente.
 - [ ] Imagem HOMOL publicada e implantada automaticamente.
 - [x] Swagger 200 em DEV e 404 em HOMOL.
-- [ ] Prometheus com os dois targets UP e dashboard com tráfego real.
+- [x] Prometheus com os dois targets UP e dashboard com tráfego real.
+
+Monitoramento em 09/11/2026: Prometheus local (http://localhost:9093) com
+`orders-dev` e `orders-homol` UP via HTTPS e Bearer `METRICS_TOKEN`; Grafana
+(http://localhost:3004/d/orders-delivery) com o dashboard provisionado e o datasource
+consultando os dois alvos. Tráfego gerado pelo fluxo cloud (3 execuções por
+ambiente) e por requisições inválidas (4xx); as séries de requisições por
+rota/status, latência p95 e `orders_build_info` (`0.2.0-dev.7`) aparecem nos dois
+ambientes. A coleta mantém os serviços Free acordados e consome as horas do
+workspace Render: suba o monitoramento só para evidências e apresentação.
