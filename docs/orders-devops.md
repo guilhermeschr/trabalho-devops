@@ -101,15 +101,31 @@ npm run verify:flow
 
 | Item | Link/valor |
 |---|---|
-| URL DEV | a preencher |
-| URL HOMOL | a preencher |
+| URL DEV | https://orders-dev-uu8r.onrender.com (`srv-dbosva67bikc73a6me90`) |
+| URL HOMOL | https://orders-homol.onrender.com (`srv-dbosvlm417fc739am4g0`) |
 | Projeto Sonar | https://sonarcloud.io/dashboard?id=guilhermeschr_orders |
-| Primeira release DEV | a preencher |
-| Primeira release HOMOL | a preencher |
+| Primeira release DEV | [orders-v0.2.0-dev.7](https://github.com/guilhermeschr/trabalho-devops/releases/tag/orders-v0.2.0-dev.7), digest `sha256:c99d433d06d1136c29efb2993cd5cfd0f68f74e8c615f295e39a49e200f50647` |
+| Primeiro CD DEV | [run 42622882296](https://github.com/guilhermeschr/trabalho-devops/actions/runs/42622882296), deploy `dep-dbot4qgu01pc738b9hj0` live e validado |
+| Primeira release HOMOL | pendente (promoção `develop` → `main`) |
 
-- [ ] Quality Gate aprovado em `develop` e `main`.
-- [ ] Imagem DEV publicada e implantada automaticamente.
+Provisionamento em 09/11/2026:
+
+- Serviços criados por Existing Image com o digest acima, plano Free, região
+  Virginia, health check `/health`; `autoDeploy=no` ajustado pela API.
+- Bancos `orders_dev`/`orders_homol` com usuários próprios na instância PostgreSQL
+  compartilhada do grupo (expira em 30/11/2026), `REVOKE CONNECT ... FROM
+  PUBLIC` e TLS com validação de certificado verificado.
+- A primeira análise Sonar de uma branch longa (`main` ou `develop`) retorna
+  `NONE` e reprova o passo; a reexecução calcula o Quality Gate.
+- Verificação manual: `/health` 200, versão com ambiente correto, `/metrics`
+  401 sem token, Swagger 200 em DEV e 404 em HOMOL.
+- Fluxo ponta a ponta direto nos serviços Render, em DEV e em HOMOL: cadastro
+  e login no Auth, produto e estoque com o JWT emitido, pedido criado (Pedidos
+  chama Produtos e Estoque com `X-Internal-Token`), consulta, conclusão
+  idempotente e débito refletido na projeção de estoque (20 → 18).
+
+- [x] Quality Gate aprovado em `develop` e `main`.
+- [x] Imagem DEV publicada e implantada automaticamente.
 - [ ] Imagem HOMOL publicada e implantada automaticamente.
-- [ ] Pedido criado em DEV e HOMOL usando Produtos e Estoque cloud.
-- [ ] Swagger 200 em DEV e 404 em HOMOL.
+- [x] Swagger 200 em DEV e 404 em HOMOL.
 - [ ] Prometheus com os dois targets UP e dashboard com tráfego real.

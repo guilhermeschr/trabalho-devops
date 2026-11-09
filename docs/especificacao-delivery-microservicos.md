@@ -1,8 +1,8 @@
 # Especificação do Sistema de Delivery com Microsserviços
 
 **Status:** especificação de referência para implementação
-**Versão:** 2.25
-**Última atualização:** 2026-11-08
+**Versão:** 2.26
+**Última atualização:** 2026-11-09
 **Idioma:** português
 **Objetivo:** orientar a construção, execução e validação de um sistema simples de delivery com foco em DevOps.
 
@@ -10,6 +10,7 @@
 
 | Versão | Data | Alteração |
 |---|---|---|
+| 2.26 | 2026-11-09 | Auth e Pedidos: checklists das seções 22 e 23 atualizados com SonarCloud, Docker Hub, bancos isolados, Swagger por ambiente e fluxo cloud validados; evidências em `docs/auth-devops.md` e `docs/orders-devops.md` |
 | 2.25 | 2026-11-08 | Pedidos T2: rota pública de versão, `/metrics` com token próprio, PORT, validação cloud com origens HTTPS de Produtos e Estoque, TLS PostgreSQL opcional, Swagger desligado em HOMOL, workflow próprio, release SemVer e CD Render por digest; monitoramento local próprio (seção 23) |
 | 2.24 | 2026-11-08 | Auth T2: rota pública de versão, `/metrics` com token próprio, PORT, validação cloud, TLS PostgreSQL opcional, Swagger desligado em HOMOL, workflow próprio com SonarCloud, release SemVer no Docker Hub e CD Render por digest; monitoramento local próprio (seção 22) |
 | 2.23 | 2026-11-08 | Inventory: padronizado nome Delivery Inventory, criado projeto Sonar no monorepo da organização guilhermeschr e consolidada documentação do CI/CD no repositório original |
@@ -1812,11 +1813,11 @@ memória, CPU, versão e cadastros/logins por status.
 
 Secrets, Variables, preparação e evidências: `docs/auth-devops.md`.
 
-- [ ] SonarCloud Auth, análises main/develop e Quality Gate reais.
-- [ ] Docker Hub com imagem por release e digest registrado.
+- [x] SonarCloud Auth, análises main/develop e Quality Gate reais.
+- [x] Docker Hub com imagem por release e digest registrado.
 - [ ] CD automático DEV/HOMOL com identidade correta.
-- [ ] Banco isolado por ambiente.
-- [ ] Swagger 200 UI/JSON em DEV e 404 em HOMOL.
+- [x] Banco isolado por ambiente.
+- [x] Swagger 200 UI/JSON em DEV e 404 em HOMOL.
 - [ ] Prometheus com os dois targets UP e Grafana com tráfego real.
 
 
@@ -1887,10 +1888,10 @@ por rota e status.
 
 Secrets, Variables, preparação e evidências: `docs/orders-devops.md`.
 
-- [ ] SonarCloud Pedidos, análises main/develop e Quality Gate reais.
-- [ ] Docker Hub com imagem por release e digest registrado.
+- [x] SonarCloud Pedidos, análises main/develop e Quality Gate reais.
+- [x] Docker Hub com imagem por release e digest registrado.
 - [ ] CD automático DEV/HOMOL com identidade correta.
-- [ ] Banco isolado por ambiente.
-- [ ] Fluxo de pedido validado com Produtos e Estoque cloud em DEV e HOMOL.
-- [ ] Swagger 200 UI/JSON em DEV e 404 em HOMOL.
+- [x] Banco isolado por ambiente.
+- [x] Fluxo de pedido validado com Produtos e Estoque cloud em DEV e HOMOL.
+- [x] Swagger 200 UI/JSON em DEV e 404 em HOMOL.
 - [ ] Prometheus com os dois targets UP e Grafana com tráfego real.
