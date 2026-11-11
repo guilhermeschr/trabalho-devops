@@ -6,7 +6,7 @@ A migração preserva os contratos HTTP, os eventos RabbitMQ e as tabelas Postgr
 ## Trabalho Prático 2
 
 [Configuração de CI/CD, Render e monitoramento](../../docs/inventory-devops.md).
-Pushes com alterações no Inventory em `develop` executam testes, análise Sonar e publicação da imagem Docker; após aprovação das verificações, o pipeline faz o deploy automático de DEV.
+Pushes com alterações no Inventory em `develop` executam testes, análise Sonar e publicação da imagem Docker; com todas as verificações aprovadas, o pipeline atualiza automaticamente o Inventory DEV no Render.
 A porta aceita `PORT` antes de `INVENTORY_PORT`. `/actuator/prometheus` exige
 `Authorization: Bearer <METRICS_TOKEN>`; readiness fica em
 `/actuator/health/readiness`. No Render, o Spring é um Web Service público,
