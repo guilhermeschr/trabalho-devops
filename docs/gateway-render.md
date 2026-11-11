@@ -22,10 +22,8 @@ O gateway bloqueia `/internal/`; as chamadas internas são feitas diretamente
 por HTTPS e exigem token. Os destinos continuam publicamente acessíveis.
 
 Os ambientes `docs/bruno/environments/dev.yml` e `homol.yml` contêm as URLs
-dos gateways. Na cópia local atualmente modificada, a
-requisição de cadastro A possui uma variável `baseUrl` própria: remova essa
-sobreposição no Bruno para usar o ambiente selecionado. Confira também as
-variáveis `senha` antes de executar a coleção. Execute as pastas 1 a 5 em
+dos gateways. Selecione o ambiente desejado no Bruno; o cadastro e o login
+usam a senha definida nesse ambiente. Execute as pastas 1 a 5 em
 ordem; a pasta 6 exige interromper Estoque e não integra o fluxo normal.
 As execuções criam dados persistentes. A projeção é eventualmente consistente;
 aguarde a atualização caso uma consulta inicial ainda não mostre os dados.
