@@ -1,8 +1,8 @@
 # Especificação do Sistema de Delivery com Microsserviços
 
 **Status:** especificação de referência para implementação
-**Versão:** 2.25
-**Última atualização:** 2026-11-08
+**Versão:** 2.26
+**Última atualização:** 2026-11-11
 **Idioma:** português
 **Objetivo:** orientar a construção, execução e validação de um sistema simples de delivery com foco em DevOps.
 
@@ -10,6 +10,7 @@
 
 | Versão | Data | Alteração |
 |---|---|---|
+| 2.26 | 2026-11-11 | Preparada imagem Nginx para Render com upstreams HTTPS autenticados por certificado, porta PORT e ambientes Bruno DEV/HOMOL; publicação e validação cloud pendentes |
 | 2.25 | 2026-11-08 | Pedidos T2: rota pública de versão, `/metrics` com token próprio, PORT, validação cloud com origens HTTPS de Produtos e Estoque, TLS PostgreSQL opcional, Swagger desligado em HOMOL, workflow próprio, release SemVer e CD Render por digest; monitoramento local próprio (seção 23) |
 | 2.24 | 2026-11-08 | Auth T2: rota pública de versão, `/metrics` com token próprio, PORT, validação cloud, TLS PostgreSQL opcional, Swagger desligado em HOMOL, workflow próprio com SonarCloud, release SemVer no Docker Hub e CD Render por digest; monitoramento local próprio (seção 22) |
 | 2.23 | 2026-11-08 | Inventory: padronizado nome Delivery Inventory, criado projeto Sonar no monorepo da organização guilhermeschr e consolidada documentação do CI/CD no repositório original |
@@ -1894,3 +1895,24 @@ Secrets, Variables, preparação e evidências: `docs/orders-devops.md`.
 - [ ] Fluxo de pedido validado com Produtos e Estoque cloud em DEV e HOMOL.
 - [ ] Swagger 200 UI/JSON em DEV e 404 em HOMOL.
 - [ ] Prometheus com os dois targets UP e Grafana com tráfego real.
+
+
+## 24. Gateway Nginx preparado para Render
+
+A imagem `infra/nginx/render/Dockerfile` prepara um gateway para cada ambiente.
+A publicação da imagem e a criação dos serviços Render ainda não foram
+confirmadas. O Compose local continua usando `infra/nginx/nginx.conf`.
+
+O gateway escuta `PORT` (padrão 10000) e exige as origens HTTPS Render
+`AUTH_SERVICE_URL`, `PRODUCTS_SERVICE_URL`, `INVENTORY_SERVICE_URL` e
+`ORDERS_SERVICE_URL`, sem caminhos. Ele valida os certificados TLS e envia
+o nome do serviço no Host e no SNI. `GET /health` verifica o processo do
+gateway, sem testar a disponibilidade das dependências. As regras de rotas,
+identificador, erros, bloqueio de `/internal/` e descarte do token interno
+seguem a seção 11. As URLs diretas de Produtos e Estoque continuam públicas
+e protegidas por token interno, conforme as seções 20 e 21; Pedidos usa essas
+origens diretamente. O gateway não fornece isolamento de rede.
+
+Os ambientes Bruno `dev` e `homol` contêm URLs a preencher depois da criação
+dos serviços. A coleção e os dados de testes existentes são preservados.
+Instruções e estado de implantação: [gateway no Render](gateway-render.md).
