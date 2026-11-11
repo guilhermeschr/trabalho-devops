@@ -1,7 +1,7 @@
 name: homol
 variables:
   - name: baseUrl
-    value: https://PREENCHA-URL-GATEWAY-HOMOL.onrender.com
+    value: https://gateway-homol-msdr.onrender.com
   - name: senha
     value: SenhaSegura123
   - name: produtoInexistente

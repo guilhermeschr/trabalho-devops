@@ -1,7 +1,7 @@
 # Especificação do Sistema de Delivery com Microsserviços
 
 **Status:** especificação de referência para implementação
-**Versão:** 2.26
+**Versão:** 2.27
 **Última atualização:** 2026-11-11
 **Idioma:** português
 **Objetivo:** orientar a construção, execução e validação de um sistema simples de delivery com foco em DevOps.
@@ -10,6 +10,7 @@
 
 | Versão | Data | Alteração |
 |---|---|---|
+| 2.27 | 2026-11-11 | Publicados gateways DEV e HOMOL no Render por digest e validado fluxo completo e proteção interna nos dois ambientes |
 | 2.26 | 2026-11-11 | Preparada imagem Nginx para Render com upstreams HTTPS autenticados por certificado, porta PORT e ambientes Bruno DEV/HOMOL; publicação e validação cloud pendentes |
 | 2.25 | 2026-11-08 | Pedidos T2: rota pública de versão, `/metrics` com token próprio, PORT, validação cloud com origens HTTPS de Produtos e Estoque, TLS PostgreSQL opcional, Swagger desligado em HOMOL, workflow próprio, release SemVer e CD Render por digest; monitoramento local próprio (seção 23) |
 | 2.24 | 2026-11-08 | Auth T2: rota pública de versão, `/metrics` com token próprio, PORT, validação cloud, TLS PostgreSQL opcional, Swagger desligado em HOMOL, workflow próprio com SonarCloud, release SemVer no Docker Hub e CD Render por digest; monitoramento local próprio (seção 22) |
@@ -1897,11 +1898,12 @@ Secrets, Variables, preparação e evidências: `docs/orders-devops.md`.
 - [ ] Prometheus com os dois targets UP e Grafana com tráfego real.
 
 
-## 24. Gateway Nginx preparado para Render
+## 24. Gateway Nginx no Render
 
-A imagem `infra/nginx/render/Dockerfile` prepara um gateway para cada ambiente.
-A publicação da imagem e a criação dos serviços Render ainda não foram
-confirmadas. O Compose local continua usando `infra/nginx/nginx.conf`.
+A imagem `infra/nginx/render/Dockerfile` executa um gateway em cada ambiente.
+Os serviços `gateway-dev` e `gateway-homol` estão implantados no Render a partir
+do digest documentado em `gateway-render.md`. O Compose local continua usando
+`infra/nginx/nginx.conf`.
 
 O gateway escuta `PORT` (padrão 10000) e exige as origens HTTPS Render
 `AUTH_SERVICE_URL`, `PRODUCTS_SERVICE_URL`, `INVENTORY_SERVICE_URL` e
@@ -1913,6 +1915,10 @@ seguem a seção 11. As URLs diretas de Produtos e Estoque continuam públicas
 e protegidas por token interno, conforme as seções 20 e 21; Pedidos usa essas
 origens diretamente. O gateway não fornece isolamento de rede.
 
-Os ambientes Bruno `dev` e `homol` contêm URLs a preencher depois da criação
-dos serviços. A coleção e os dados de testes existentes são preservados.
+Os ambientes Bruno `dev` e `homol` apontam para os gateways implantados.
+A coleção e os dados de testes existentes são preservados.
+O roteiro `verify-flow.mjs` passou nos dois ambientes em 11/11/2026, incluindo
+criação e conclusão idempotente de pedido e convergência das projeções.
+As rotas internas diretas de Produtos e Estoque retornaram 403 sem token e com
+token inválido em ambos os ambientes.
 Instruções e estado de implantação: [gateway no Render](gateway-render.md).

@@ -1,7 +1,7 @@
 name: dev
 variables:
   - name: baseUrl
-    value: https://PREENCHA-URL-GATEWAY-DEV.onrender.com
+    value: https://gateway-dev-nw8k.onrender.com
   - name: senha
     value: SenhaSegura123
   - name: produtoInexistente
