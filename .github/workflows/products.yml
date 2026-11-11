@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: actions/setup-node@v4
@@ -82,7 +82,7 @@ jobs:
       version: ${{ steps.names.outputs.version }}
       digest: ${{ steps.result.outputs.digest }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Identificar release e verificar imagem existente
         id: names
         env:
@@ -160,5 +160,5 @@ jobs:
       EXPECTED_VERSION: ${{ needs.image.outputs.version }}
       EXPECTED_COMMIT: ${{ github.sha }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: python3 scripts/deploy-products.py
