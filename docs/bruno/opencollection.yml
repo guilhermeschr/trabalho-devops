@@ -2,6 +2,26 @@ opencollection: 1.0.0
 
 info:
   name: delivery-microservicos
+config:
+  proxy:
+    inherit: true
+    config:
+      protocol: http
+      hostname: ""
+      port: ""
+      auth:
+        username: ""
+        password: ""
+      bypassProxy: ""
+
+request:
+  variables:
+    - name: baseUrl
+      value: http://localhost:8080
+    - name: senha
+      value: "12345678"
+    - name: emailB
+      value: email2@example.com
 
 docs:
   content: |-
