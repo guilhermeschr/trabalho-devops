@@ -23,7 +23,7 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { ErrorResponseDto } from '../../../../common/swagger/error-response.dto';
+import { ErrorResponseDto } from '@products/common/swagger/error-response.dto';
 import { CreateProductDto } from '../../application/dto/create-product.dto';
 import { ListProductsQueryDto } from '../../application/dto/list-products.query.dto';
 import { ProductResponseDto } from '../../application/dto/product-response.dto';
